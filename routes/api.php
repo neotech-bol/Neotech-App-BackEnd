@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -21,4 +22,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::group(["middleware" => "auth:sanctum"], function () {
     Route::post("/logout", [AuthController::class,"logout"]);
     Route::get('/usuarios', [UserController::class, 'index']);
+
+    //Roles y permisos
+    Route::get('/roles', [RolesPermisosController::class,'indexRoles']);
+    Route::post('/rol-nuevo', [RolesPermisosController::class, 'store']);
+    Route::delete('/rol/{id}', [RolesPermisosController::class, 'destroyRole']);
 });
