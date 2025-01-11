@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -27,4 +29,16 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/roles', [RolesPermisosController::class,'indexRoles']);
     Route::post('/rol-nuevo', [RolesPermisosController::class, 'store']);
     Route::delete('/rol/{id}', [RolesPermisosController::class, 'destroyRole']);
+
+    //catalogos
+    Route::get('/catalogos', [CatalogoController::class, 'index']);
+    Route::post('/catalogo-nuevo', [CatalogoController::class,'store']);
+    Route::get('/catalogo/{id}', [CatalogoController::class,'show']);
+    Route::put('/catalogo/{id}', [CatalogoController::class,'update']);
+    Route::delete('/catalogo/{id}', [CatalogoController::class,'destroy']);
+    Route::get('/catalogos-activos', [CatalogoController::class,'indexActivos']);
+
+    //productos
+    Route::get('/productos', [ProductosController::class,'index']);
+    Route::post('/producto-nuevo', [ProductosController::class,'store']);
 });
