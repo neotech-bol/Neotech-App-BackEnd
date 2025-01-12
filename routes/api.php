@@ -37,8 +37,12 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::put('/catalogo/{id}', [CatalogoController::class,'update']);
     Route::delete('/catalogo/{id}', [CatalogoController::class,'destroy']);
     Route::get('/catalogos-activos', [CatalogoController::class,'indexActivos']);
+    //Desvincular productos del catalogo
+    Route::post('/catalogos/{catalogoId}/productos/{productoId}/detach', [CatalogoController::class, 'detachProduct']);
 
     //productos
     Route::get('/productos', [ProductosController::class,'index']);
     Route::post('/producto-nuevo', [ProductosController::class,'store']);
+    Route::get('/producto/{id}', [ProductosController::class,'show']);
+    Route::put('/producto/{id}', [ProductosController::class,'update']);
 });
