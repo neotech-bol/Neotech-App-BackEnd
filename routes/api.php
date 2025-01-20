@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\UserController;
@@ -21,7 +23,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+
 Route::group(["middleware" => "auth:sanctum"], function () {
+    Route::get('email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->name('verification.verify');
+    Route::post('email/verification-notification', [VerificationController::class, 'resend'])->name('verification.send');
+
     Route::post("/logout", [AuthController::class,"logout"]);
     Route::get('/usuarios', [UserController::class, 'index']);
 
@@ -37,12 +43,21 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::put('/catalogo/{id}', [CatalogoController::class,'update']);
     Route::delete('/catalogo/{id}', [CatalogoController::class,'destroy']);
     Route::get('/catalogos-activos', [CatalogoController::class,'indexActivos']);
-    //Desvincular productos del catalogo
-    Route::post('/catalogos/{catalogoId}/productos/{productoId}/detach', [CatalogoController::class, 'detachProduct']);
+
+    //categorias
+    Route::get('/categorias', [CategoriaController::class,'index']);
+    Route::post('/categoria-nueva', [CategoriaController::class,'store']);
+    Route::get('/categoria/{id}', [CategoriaController::class,'show']);
+    Route::put('/categoria/{id}', [CategoriaController::class,'update']);
+    Route::delete('/categoria/{id}', [CategoriaController::class,'destroy']);
+    Route::get('/categorias-activas', [CategoriaController::class,'indexActivos']);
+
+
 
     //productos
     Route::get('/productos', [ProductosController::class,'index']);
     Route::post('/producto-nuevo', [ProductosController::class,'store']);
     Route::get('/producto/{id}', [ProductosController::class,'show']);
     Route::put('/producto/{id}', [ProductosController::class,'update']);
+    Route::delete('productos/{productoId}/images/{imagenId}', [ProductosController::class, 'destroyImage']);
 });

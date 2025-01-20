@@ -18,21 +18,21 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
-    
+
         // Buscar el usuario por email y cargar sus roles
         $user = User::where('email', $request->email)->with('roles')->first();
         // Verificar si el usuario existe y si la contraseña es correcta
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Credenciales incorrectas'], 401);
+            return response()->json(['message' => 'Credenciales incorrectas'], 404);
         }
-    
+
         // Generar un token de acceso
         $token = $user->createToken('auth_token')->plainTextToken;
-    
+
         // Retornar respuesta
         return response()->json(['message' => 'Inicio de sesión exitoso', 'user' => $user, 'access_token' => $token, 'token_type' => 'Bearer'], 200);
     }
@@ -44,10 +44,10 @@ class AuthController extends Controller
             'apellido' => 'required|string|max:50',
             'ci' => 'required|string|max:15|unique:users',
             'nit' => 'required|string|unique:users',
-            'direccion' => 'nullable|string',
-            'telefono' => 'nullable|string|max:20',
-            'edad' => 'nullable|integer',
-            'genero' => 'nullable|in:M,F,Otro',
+            'direccion' => 'required|string',
+            'telefono' => 'required|string|max:20',
+            'edad' => 'required|integer',
+            'genero' => 'required|in:M,F,Otro',
             'email' => 'required|string|email|max:100|unique:users',
         ]);
 
@@ -71,13 +71,15 @@ class AuthController extends Controller
 
         // Asignar rol de cliente
         $user->assignRole('cliente');
-
+        // Send email verification notification
+        $user->sendEmailVerificationNotification();
         $token = $user->createToken('auth_token')->plainTextToken;
         // Retornar respuesta
         return response()->json(['message' => 'Usuario registrado con éxito', 'user' => $user, 'access_token' => $token, 'token_type' => 'Bearer'], 201);
     }
-    public function logout() {
+    public function logout()
+    {
         Auth::user()->tokens()->delete();
-        return response()->json(['message'=> 'Sesion finalizada'], 200);
+        return response()->json(['message' => 'Sesion finalizada'], 200);
     }
 }

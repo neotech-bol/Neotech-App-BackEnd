@@ -14,7 +14,7 @@ class CatalogoController extends Controller
      */
     public function index()
     {
-        $item = Catalogo::with('productos')->get();
+        $item = Catalogo::with(['productos.categoria', 'productos.images'])->get();
         return response()->json(["mensaje" => "Catalogos cargados correctamente", "datos" => $item], 200);
     }
 

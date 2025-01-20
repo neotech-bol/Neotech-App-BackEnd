@@ -17,12 +17,12 @@ return new class extends Migration
             $table->string('apellido', 50); 
             $table->string('ci', 15)->unique();
             $table->string('nit')->unique();
-            $table->text('direccion')->nullable();
-            $table->string('telefono', 20)->nullable();
-            $table->integer('edad')->nullable();
-            $table->enum('genero', ['M', 'F', 'Otro'])->nullable();
+            $table->text('direccion');
+            $table->string('telefono', 20);
+            $table->integer('edad');
+            $table->enum('genero', ['M', 'F', 'Otro']);
             $table->string('email', 100)->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('email_verified_at')->nullable()->default(null);
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();

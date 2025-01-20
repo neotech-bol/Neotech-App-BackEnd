@@ -11,7 +11,7 @@ class ProductosController extends Controller
 {
     public function index()
     {
-        $products = Producto::with('images', 'catalogo')->get();
+        $products = Producto::with('images', 'catalogo', 'categoria', 'user:id,nombre,apellido')->get();
         return response()->json(["mensaje" => "Productos cargados correctamente", "datos" => $products], 200);
     }
     public function store(Request $request)
@@ -21,7 +21,8 @@ class ProductosController extends Controller
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "catalogo_id" => "required",
+            "catalogo_id" => "nullable",
+            "categoria_id" => "nullable",
             "images" => "required|array",
             "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048", // Validar que cada imagen sea un archivo de imagen
         ]);
@@ -34,6 +35,8 @@ class ProductosController extends Controller
             $item->descripcion = $request->descripcion;
             $item->precio = $request->precio;
             $item->catalogo_id = $request->catalogo_id;
+            $item->categoria_id = $request->categoria_id;
+            $item->user_id = auth()->id(); // Asignar el ID del usuario autenticado
             $item->save(); // Guardar el producto primero
             // Agregar imágenes al producto
             foreach ($request->file('images') as $imagen) {
@@ -61,7 +64,7 @@ class ProductosController extends Controller
     }
     public function show(string $id)
     {
-        $item = Producto::with('images', 'catalogo')->findOrFail($id);
+        $item = Producto::with('images', 'catalogo', 'categoria', 'user')->findOrFail($id);
         // Modificar las imágenes para incluir la URL completa
         $item->images->transform(function ($image) {
             $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
@@ -76,7 +79,8 @@ class ProductosController extends Controller
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "catalogo_id" => "required",
+            "catalogo_id" => "nullable",
+            "categoria_id" => "nullable",
             "images" => "nullable|array", // Las imágenes son opcionales en la actualización
             "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048", // Validar que cada imagen sea un archivo de imagen
         ]);
@@ -92,6 +96,7 @@ class ProductosController extends Controller
             $item->descripcion = $request->descripcion;
             $item->precio = $request->precio;
             $item->catalogo_id = $request->catalogo_id;
+            $item->categoria_id = $request->categoria_id;
             $item->save(); // Guardar los cambios en el producto
 
             // Si se proporcionan nuevas imágenes, manejarlas
@@ -123,6 +128,32 @@ class ProductosController extends Controller
             // Revertir la transacción en caso de error
             DB::rollBack();
             return response()->json(["mensaje" => "Error al actualizar el producto", "error" => $th->getMessage()], 500);
+        }
+    }
+    public function destroyImage(Request $request, string $productoId, string $imagenId)
+    {
+        // Iniciar una transacción
+        DB::beginTransaction();
+        try {
+            // Buscar la imagen
+            $image = Image::where('id', $imagenId)->where('producto_id', $productoId)->firstOrFail();
+
+            // Eliminar la imagen del sistema de archivos
+            $imagePath = public_path("images/productos/" . $image->imagen);
+            if (file_exists($imagePath)) {
+                unlink($imagePath); // Eliminar el archivo de imagen
+            }
+
+            // Eliminar la imagen de la base de datos
+            $image->delete();
+
+            // Confirmar la transacción
+            DB::commit();
+            return response()->json(["mensaje" => "Imagen eliminada con éxito"], 200);
+        } catch (\Throwable $th) {
+            // Revertir la transacción en caso de error
+            DB::rollBack();
+            return response()->json(["mensaje" => "Error al eliminar la imagen", "error" => $th->getMessage()], 500);
         }
     }
 }
