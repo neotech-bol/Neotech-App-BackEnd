@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\VerificationController;
+use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\UserController;
@@ -36,6 +38,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::post('/usuario-nuevo', [UserController::class, 'storeUserAdmin']);
     Route::get('/usuario/{id}', [UserController::class, 'show']);
     Route::put('/usuario/{id}', [UserController::class, 'update']);
+    Route::delete('/usuario/{id}', [UserController::class,'changeEstado']);
 
     //Roles y permisos
     Route::get('/permisos', [RolesPermisosController::class, 'indexPermissions']);
@@ -52,7 +55,6 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/catalogo/{id}', [CatalogoController::class, 'show']);
     Route::put('/catalogo/{id}', [CatalogoController::class, 'update']);
     Route::delete('/catalogo/{id}', [CatalogoController::class, 'destroy']);
-    Route::get('/catalogos-activos', [CatalogoController::class, 'indexActivos']);
 
     //categorias
     Route::get('/categorias', [CategoriaController::class, 'index']);
@@ -62,12 +64,31 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::delete('/categoria/{id}', [CategoriaController::class, 'destroy']);
     Route::get('/categorias-activas', [CategoriaController::class, 'indexActivos']);
 
-
-
     //productos
     Route::get('/productos', [ProductosController::class, 'index']);
     Route::post('/producto-nuevo', [ProductosController::class, 'store']);
     Route::get('/producto/{id}', [ProductosController::class, 'show']);
     Route::put('/producto/{id}', [ProductosController::class, 'update']);
     Route::delete('productos/{productoId}/images/{imagenId}', [ProductosController::class, 'destroyImage']);
+
+    //Pedidos
+    Route::get('/pedidos', [PedidoController::class, 'index']);
+    Route::get('/pedido/{id}', [PedidoController::class, 'show']);
+    Route::post('/pedido-nuevo', [PedidoController::class, 'store']);
+    Route::put('/pedido/{id}', [PedidoController::class, 'update']);
+    Route::get('/usuarios/{userId}/pedidos', [PedidoController::class, 'obtenerPedidosPorUsuario']);
+
+
+     // Rutas para calificaciones
+     Route::prefix('productos/{productoId}/calificaciones')->group(function () {
+        Route::post('/calificacion-nueva', [CalificacionController::class, 'store']); // Crear una nueva calificación
+        Route::get('/caalificacion', [CalificacionController::class, 'index']); // Obtener todas las calificaciones de un producto
+        Route::put('/calificacion/{id}', [CalificacionController::class, 'update']); // Actualizar una calificación existente
+        Route::delete('/calificacion/{id}', [CalificacionController::class, 'destroy']); // Eliminar una calificación
+    });
 });
+
+//Catalogos activos
+Route::get('/catalogos-activos', [CatalogoController::class, 'indexActivos']);
+
+Route::get('/producto-ver/{id}', [ProductosController::class, 'showProductoUser']);

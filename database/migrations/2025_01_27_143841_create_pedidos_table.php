@@ -11,12 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('catalogos', function (Blueprint $table) {
+        Schema::create('pedidos', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
-            $table->text('descripcion')->nullable();
-            $table->string('banner')->nullable();
-            $table->boolean('estado')->default(true);
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->decimal('monto_total', 10, 2);
             $table->timestamps();
         });
     }
@@ -26,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('catalogos');
+        Schema::dropIfExists('pedidos');
     }
 };

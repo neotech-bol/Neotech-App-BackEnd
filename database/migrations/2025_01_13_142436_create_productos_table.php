@@ -20,6 +20,8 @@ return new class extends Migration
             $table->text('descripcion')->nullable();
             $table->decimal('precio', 10,2);
             $table->boolean('estado')->default(true);
+            $table->integer('cantidad')->default(0); // Campo para la cantidad
+            $table->string('imagen_principal')->nullable(); // Campo para la imagen principal
             $table->timestamps();
         });
     }

@@ -12,21 +12,21 @@ class UserController extends Controller
     {
         // Obtener los parámetros de búsqueda de la solicitud
         $query = User::with('roles');
-    
+
         // Filtrar por el parámetro de búsqueda general
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('nombre', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('apellido', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('ci', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('nit', 'like', '%' . $searchTerm . '%');
+                    ->orWhere('apellido', 'like', '%' . $searchTerm . '%')
+                    ->orWhere('ci', 'like', '%' . $searchTerm . '%')
+                    ->orWhere('nit', 'like', '%' . $searchTerm . '%');
             });
         }
-    
+
         // Paginación
         $item = $query->paginate(10);
-    
+
         return response()->json(["mensaje" => "Usuarios cargados correctamente", "datos" => $item], 200);
     }
     public function storeUserAdmin(Request $request)
@@ -123,5 +123,25 @@ class UserController extends Controller
         }
 
         return response()->json(["mensaje" => "Usuario actualizado correctamente", "datos" => $user], 200);
+    }
+    public function changeEstado($id)
+    {
+        // Buscar el usuario por su ID
+        $user = User::find($id);
+
+        // Verificar si el usuario existe
+        if ($user) {
+            // Cambiar el estado del usuario
+            $user->estado = !$user->estado;
+
+            // Guardar los cambios en la base de datos
+            $user->save();
+
+            // Retornar una respuesta exitosa
+            return response()->json(['success' => true, 'estado' => $user->estado]);
+        } else {
+            // Retornar un error si el usuario no se encuentra
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+        }
     }
 }
