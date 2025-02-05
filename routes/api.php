@@ -39,7 +39,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/usuario/{id}', [UserController::class, 'show']);
     Route::put('/usuario/{id}', [UserController::class, 'update']);
     Route::delete('/usuario/{id}', [UserController::class,'changeEstado']);
-
+    Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
     //Roles y permisos
     Route::get('/permisos', [RolesPermisosController::class, 'indexPermissions']);
     Route::get('/roles', [RolesPermisosController::class, 'indexRoles']);

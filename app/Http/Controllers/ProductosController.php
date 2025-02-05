@@ -95,21 +95,51 @@ class ProductosController extends Controller
         }
         return response()->json(["mensaje" => "Producto cargado correctamente", "dato" => $item], 200);
     }
+    public function showProductoUser (string $id)
+{
+    // Obtener el producto específico con sus relaciones
+    $item = Producto::with("images", "catalogo", "categoria", "caracteristicas")->findOrFail($id);
 
-    public function showProductoUser(string $id)
-    {
-        $item = Producto::with("images", "catalogo", "categoria", "caracteristicas")->findOrFail($id);
-        // Modificar las imágenes para incluir la URL completa
-        $item->images->transform(function ($image) {
+    // Modificar las imágenes para incluir la URL completa
+    $item->images->transform(function ($image) {
+        $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
+        return $image;
+    });
+
+    // Modificar la imagen principal para incluir la URL completa
+    if ($item->imagen_principal) {
+        $item->imagen_principal = asset("images/imagenes_principales/" . $item->imagen_principal); // Cambia la ruta según sea necesario
+    }
+
+    // Obtener productos similares (por ejemplo, los que tienen la misma categoría)
+    $productosSimilares = Producto::with("images", "catalogo", "categoria", "caracteristicas")
+        ->where('categoria_id', $item->categoria_id)
+        ->where('id', '!=', $item->id) // Excluir el producto actual
+        ->take(2) // Limitar a 2 productos
+        ->get();
+
+    // Modificar las imágenes de los productos similares para incluir la URL completa
+    $productosSimilares->transform(function ($similar) {
+        $similar->images->transform(function ($image) {
             $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
             return $image;
         });
+
         // Modificar la imagen principal para incluir la URL completa
-        if ($item->imagen_principal) {
-            $item->imagen_principal = asset("images/imagenes_principales/" . $item->imagen_principal); // Cambia la ruta según sea necesario
+        if ($similar->imagen_principal) {
+            $similar->imagen_principal = asset("images/imagenes_principales/" . $similar->imagen_principal); // Cambia la ruta según sea necesario
         }
-        return response()->json(["mensaje" => "Producto cargado correctamente", "dato" => $item], 200);
-    }
+
+        return $similar;
+    });
+
+    // Retornar la respuesta JSON con el producto y los productos similares
+    return response()->json([
+        "mensaje" => "Producto cargado correctamente",
+        "dato" => $item,
+        "productos_similares" => $productosSimilares
+    ], 200);
+}
 
     public function update(Request $request, $id)
 {
