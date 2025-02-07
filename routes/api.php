@@ -5,8 +5,10 @@ use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\favoriteController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\ProductosController;
+use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -70,6 +72,14 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/producto/{id}', [ProductosController::class, 'show']);
     Route::put('/producto/{id}', [ProductosController::class, 'update']);
     Route::delete('productos/{productoId}/images/{imagenId}', [ProductosController::class, 'destroyImage']);
+    //favorites
+    Route::get('/favorites', [favoriteController::class, 'index']);
+    Route::post('/favorite-nuevo', [favoriteController::class, 'store']);
+
+    //Rating
+    Route::post('/ratings', [RatingController::class, 'store']);
+    Route::put('/ratings/{id}', [RatingController::class, 'update']);
+    Route::get('/ratings', [RatingController::class, 'index']);
 
     //Pedidos
     Route::get('/pedidos', [PedidoController::class, 'index']);
@@ -77,7 +87,6 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::post('/pedido-nuevo', [PedidoController::class, 'store']);
     Route::put('/pedido/{id}', [PedidoController::class, 'update']);
     Route::get('/usuarios/{userId}/pedidos', [PedidoController::class, 'obtenerPedidosPorUsuario']);
-
 
      // Rutas para calificaciones
      Route::prefix('productos/{productoId}/calificaciones')->group(function () {

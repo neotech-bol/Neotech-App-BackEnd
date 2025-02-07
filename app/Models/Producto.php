@@ -43,4 +43,8 @@ class Producto extends Model
     {
         return $this->hasMany(Calificacion::class);
     }
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
 }

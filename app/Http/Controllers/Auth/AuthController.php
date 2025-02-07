@@ -72,7 +72,7 @@ class AuthController extends Controller
         // Asignar rol de cliente
         $user->assignRole('cliente');
         // Send email verification notification
-        $user->sendEmailVerificationNotification();
+/*         $user->sendEmailVerificationNotification(); */
         $token = $user->createToken('auth_token')->plainTextToken;
         // Retornar respuesta
         return response()->json(['message' => 'Usuario registrado con éxito', 'user' => $user, 'access_token' => $token, 'token_type' => 'Bearer'], 201);

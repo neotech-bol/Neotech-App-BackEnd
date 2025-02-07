@@ -11,7 +11,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         // Obtener los parámetros de búsqueda de la solicitud
-        $query = User::with('roles');
+        $query = User::with('roles', 'favorites');
 
         // Filtrar por el parámetro de búsqueda general
         if ($request->has('search') && $request->search != '') {
@@ -144,26 +144,26 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
         }
     }
-    public function getAuthenticatedUser ()
-{
-    // Obtener el usuario autenticado
-    $user = auth()->user();
+    public function getAuthenticatedUser()
+    {
+        // Obtener el usuario autenticado
+        $user = auth()->user();
 
-    // Verificar si el usuario está autenticado
-    if ($user) {
-        // Cargar los roles del usuario
-        $user->load('roles');
+        // Verificar si el usuario está autenticado
+        if ($user) {
+            // Cargar los roles del usuario
+            $user->load('roles');
 
-        // Retornar una respuesta con los datos del usuario
-        return response()->json([
-            "mensaje" => "Datos del usuario autenticado",
-            "datos" => $user
-        ], 200);
-    } else {
-        // Retornar un error si no hay usuario autenticado
-        return response()->json([
-            "mensaje" => "No hay usuario autenticado"
-        ], 401);
+            // Retornar una respuesta con los datos del usuario
+            return response()->json([
+                "mensaje" => "Datos del usuario autenticado",
+                "datos" => $user
+            ], 200);
+        } else {
+            // Retornar un error si no hay usuario autenticado
+            return response()->json([
+                "mensaje" => "No hay usuario autenticado"
+            ], 401);
+        }
     }
-}
 }
