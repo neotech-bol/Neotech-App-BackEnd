@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categorias', function (Blueprint $table) {
+        Schema::create('catalogo_historiales', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('catalogo_id')->nullable()->constrained('catalogos')->onDelete('cascade')->onUpdate('cascade');
+            $table->foreignId('catalogo_id')->constrained()->onDelete('cascade');
             $table->string('nombre');
-            $table->string('banner');
-            $table->string('titulo');
-            $table->string('subtitulo');
-            $table->text('descripcion')->nullable();
+            $table->string('descripcion')->nullable();
+            $table->string('banner')->nullable();
+            $table->integer('orden')->default(0);
             $table->boolean('estado')->default(true);
             $table->timestamps();
         });
@@ -29,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categorias');
+        Schema::dropIfExists('catalogo_historiales');
     }
 };

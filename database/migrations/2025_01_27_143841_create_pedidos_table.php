@@ -14,7 +14,11 @@ return new class extends Migration
         Schema::create('pedidos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->decimal('monto_total', 10, 2);
+            $table->foreignId('cupon_id')->nullable()->constrained('cupones')->onDelete('set null'); // Agregando cupon_id
+            $table->decimal('total_amount', 10, 2)->nullable();
+            $table->decimal('total_to_pay', 10, 2)->nullable();
+            $table->decimal('pending', 10, 2)->nullable();
+            $table->boolean('estado')->default(false);
             $table->timestamps();
         });
     }

@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('nombre');
             $table->text('descripcion')->nullable();
-            $table->string('banner')->nullable();
+            $table->integer('orden')->default(0); // Agregar el campo 'orden'
             $table->boolean('estado')->default(true);
+            $table->date('fecha_inicio')->nullable(); // Campo para la fecha de inicio
+            $table->date('fecha_fin')->nullable(); // Campo para la fecha de fin
             $table->timestamps();
         });
     }

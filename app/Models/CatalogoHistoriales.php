@@ -5,24 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Categoria extends Model
+class CatalogoHistoriales extends Model
 {
     use HasFactory;
     protected $fillable = [
-        "nombre",
-        "titulo",
-        "subtitulo",
-        "descripcion",
-        "estado",
-        'catalogo_id', // Relación con el catálogo
+        'catalogo_id',
+        'nombre',
+        'descripcion',
+        'banner',
+        'orden',
+        'estado',
     ];
+
     public function catalogo()
     {
         return $this->belongsTo(Catalogo::class);
-    }
-
-    public function productos()
-    {
-        return $this->hasMany(Producto::class);
     }
 }

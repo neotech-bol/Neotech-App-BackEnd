@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('productos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('catalogo_id')->nullable()->constrained('catalogos')->onDelete('cascade')->onUpdate('cascade');
             $table->foreignId('categoria_id')->nullable()->constrained('categorias')->onDelete('cascade')->onUpdate('cascade');
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade')->onUpdate('cascade');
             $table->string('nombre');
@@ -22,6 +21,8 @@ return new class extends Migration
             $table->boolean('estado')->default(true);
             $table->integer('cantidad')->default(0); // Campo para la cantidad
             $table->string('imagen_principal')->nullable(); // Campo para la imagen principal
+            $table->integer('cantidad_minima');
+            $table->integer('cantidad_maxima');
             $table->timestamps();
         });
     }

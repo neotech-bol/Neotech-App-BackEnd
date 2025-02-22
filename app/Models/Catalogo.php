@@ -14,8 +14,12 @@ class Catalogo extends Model
         'banner',
         "estado",
     ];
+    public function categorias()
+    {
+        return $this->hasMany(Categoria::class);
+    }
     public function productos()
     {
-        return $this->hasMany(Producto::class);
+        return $this->hasManyThrough(Producto::class, Categoria::class);
     }
 }

@@ -15,12 +15,13 @@ class PermissionsTableSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'crear_post',
-            'editar_post',
-            'borrar_post',
-            'ver_post',
-            'gestionar_usuarios',
-            'gestionar_roles',
+            'Gestionar Usuarios',
+            'Gestionar Catalogos',
+            'Gestionar Categorias',
+            'Gestionar Productos',
+            'Gestionar Roles',
+            'Gestionar Pedidos',
+            'Gestionar Cupones'
             // Agrega más permisos según sea necesario
         ];
 

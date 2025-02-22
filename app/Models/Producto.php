@@ -9,7 +9,6 @@ class Producto extends Model
 {
     use HasFactory;
     protected $fillable = [
-        "catalogo_id",
         "categoria_id",
         'nombre',
         'descripcion',
@@ -19,10 +18,6 @@ class Producto extends Model
         'imagen_principal'
     ];
 
-    public function catalogo()
-    {
-        return $this->belongsTo(Catalogo::class, "catalogo_id");
-    }
     public function categoria()
     {
         return $this->belongsTo(Categoria::class, "categoria_id");
@@ -46,5 +41,15 @@ class Producto extends Model
     public function favorites()
     {
         return $this->hasMany(Favorite::class);
+    }
+    public function pedidos()
+    {
+        return $this->belongsToMany(Pedido::class, 'pedido_producto')
+                    ->withPivot('cantidad') // Si deseas acceder a la cantidad
+                    ->withTimestamps();
+    }
+    public function modelos()
+    {
+        return $this->hasMany(ModeloProducto::class);
     }
 }
