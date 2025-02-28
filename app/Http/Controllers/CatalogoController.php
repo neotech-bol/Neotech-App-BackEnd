@@ -103,21 +103,105 @@ class CatalogoController extends Controller
         return response()->json(['mensaje' => 'Estado modificado del catalogo', 'dato' => $item], 200);
     }
     public function indexActivos(Request $request)
-{
-    // Uso de caché para mejorar el rendimiento
-    $catalogos = Cache::remember('catalogos_activos', 60, function () {
-        return Catalogo::with(['categorias' => function ($query) {
-            $query->where('estado', true); // Filtrar solo categorías activas
-        }, 'categorias.productos.images']) // Cargar imágenes de productos
-            ->where('estado', true)
-            ->orderBy('orden', 'desc') 
-            ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
-            ->get();
-    });
+    {
+        // Uso de caché para mejorar el rendimiento
+        $catalogos = Cache::remember('catalogos_activos', 60, function () {
+            return Catalogo::with(['categorias' => function ($query) {
+                $query->where('estado', true); // Filtrar solo categorías activas
+            }, 'categorias.productos.images']) // Cargar imágenes de productos
+                ->where('estado', true)
+                ->orderBy('orden', 'desc')
+                ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
+                ->get();
+        });
 
-    // Modificar la estructura para incluir las URLs de las imágenes
-    $catalogos->transform(function ($catalogo) {
-        $catalogo->banner = asset("images/categorias/banners/" . $catalogo->banner); // Asumiendo que el banner está en la ruta especificada
+        // Modificar la estructura para incluir las URLs de las imágenes
+        $catalogos->transform(function ($catalogo) {
+            $catalogo->banner = asset("images/categorias/banners/" . $catalogo->banner); // Asumiendo que el banner está en la ruta especificada
+
+            $catalogo->categorias->transform(function ($categoria) {
+                $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
+
+                $categoria->productos->transform(function ($producto) {
+                    $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
+
+                    // Transformar las imágenes del producto
+                    $producto->images->transform(function ($image) {
+                        $image->imagen = asset("images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
+                        return $image;
+                    });
+
+                    return $producto;
+                });
+
+                return $categoria;
+            });
+
+            return $catalogo;
+        });
+
+        return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
+    }
+    /**
+     * Display a listing of catalogos with only id, name and category id.
+     */
+    public function indexCatalogosConCategorias()
+    {
+        // Obtener los catálogos con sus categorías
+        $catalogos = Catalogo::with(['categorias' => function ($query) {
+            $query->select('id', 'nombre', 'catalogo_id'); // Seleccionar solo los campos necesarios
+        }])
+            ->select('id', 'nombre') // Seleccionar solo los campos necesarios del catálogo
+            ->where('estado', true) // Filtrar solo catálogos activos
+            ->get();
+
+        // Transformar la estructura para incluir solo el nombre y el id del catálogo y el id de la categoría
+        $resultados = $catalogos->map(function ($catalogo) {
+            return [
+                'id' => $catalogo->id,
+                'nombre' => $catalogo->nombre,
+                'categorias' => $catalogo->categorias->map(function ($categoria) {
+                    return [
+                        'id' => $categoria->id,
+                        'nombre' => $categoria->nombre,
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json(['mensaje' => 'Catálogos con categorías', 'datos' => $resultados], 200);
+    }
+    public function getActiveCatalogos()
+    {
+        // Obtener los IDs y nombres de los historiales activos
+        $activeHistorials = Catalogo::where('estado', true) // Filtrar solo historiales activos
+            ->select('id', 'nombre') // Asegúrate de que 'nombre' es el campo correcto
+            ->get(); // Obtener los resultados
+
+        return response()->json(['mensaje' => 'Catalogos activos', 'datos' => $activeHistorials], 200);
+    }
+    public function showCatalogoActive(string $id)
+    {
+        // Obtener el historial específico de un catálogo activo
+        $catalogo = Catalogo::with([
+            'categorias' => function ($query) {
+                $query->where('estado', true); // Filtrar solo categorías activas
+            },
+            'categorias.productos.images', // Cargar imágenes de productos
+            'categorias.productos.caracteristicas',
+            'categorias.productos.modelos'
+        ])
+            ->where('id', $id) // Filtrar por el ID del catálogo
+            ->where('estado', true) // Asegurarse de que el catálogo esté activo
+            ->first();
+
+        // Verificar si se encontró el catálogo
+        if (!$catalogo) {
+            return response()->json(['mensaje' => 'Catálogo no encontrado o inactivo'], 404);
+        }
+
+        // Modificar la estructura para incluir las URLs de las imágenes
+        $catalogo->banner = asset("images/catalogos/banners/" . $catalogo->banner); // Asumiendo que el banner está en la ruta especificada
 
         $catalogo->categorias->transform(function ($categoria) {
             $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
@@ -137,38 +221,6 @@ class CatalogoController extends Controller
             return $categoria;
         });
 
-        return $catalogo;
-    });
-
-    return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
-}
-/**
- * Display a listing of catalogos with only id, name and category id.
- */
-public function indexCatalogosConCategorias()
-{
-    // Obtener los catálogos con sus categorías
-    $catalogos = Catalogo::with(['categorias' => function ($query) {
-        $query->select('id', 'nombre', 'catalogo_id'); // Seleccionar solo los campos necesarios
-    }])
-    ->select('id', 'nombre') // Seleccionar solo los campos necesarios del catálogo
-    ->where('estado', true) // Filtrar solo catálogos activos
-    ->get();
-
-    // Transformar la estructura para incluir solo el nombre y el id del catálogo y el id de la categoría
-    $resultados = $catalogos->map(function ($catalogo) {
-        return [
-            'id' => $catalogo->id,
-            'nombre' => $catalogo->nombre,
-            'categorias' => $catalogo->categorias->map(function ($categoria) {
-                return [
-                    'id' => $categoria->id,
-                    'nombre' => $categoria->nombre,
-                ];
-            }),
-        ];
-    });
-
-    return response()->json(['mensaje' => 'Catálogos con categorías', 'datos' => $resultados], 200);
-}
+        return response()->json(['mensaje' => 'Catálogo cargado', 'datos' => $catalogo], 200);
+    }
 }

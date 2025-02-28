@@ -50,11 +50,11 @@ class AuthController extends Controller
             'genero' => 'required|in:M,F,Otro',
             'email' => 'required|string|email|max:100|unique:users',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
-
+    
         // Crear el usuario
         $user = User::create([
             'nombre' => $request->nombre,
@@ -68,14 +68,24 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->ci), // Usar CI como contraseña
         ]);
-
+    
         // Asignar rol de cliente
         $user->assignRole('cliente');
-        // Send email verification notification
-/*         $user->sendEmailVerificationNotification(); */
+    
+        // Cargar los roles del usuario
+        $user->load('roles');
+    
+        // Generar un token de acceso
         $token = $user->createToken('auth_token')->plainTextToken;
+    
         // Retornar respuesta
-        return response()->json(['message' => 'Usuario registrado con éxito', 'user' => $user, 'access_token' => $token, 'token_type' => 'Bearer'], 201);
+        return response()->json([
+            'message' => 'Usuario registrado con éxito',
+            'user' => $user,
+            'roles' => $user->roles, // Incluir los roles en la respuesta
+            'access_token' => $token,
+            'token_type' => 'Bearer'
+        ], 201);
     }
     public function logout()
     {

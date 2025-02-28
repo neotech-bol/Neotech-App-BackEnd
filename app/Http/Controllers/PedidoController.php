@@ -8,6 +8,7 @@ use App\Models\Pedido;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PedidoController extends Controller
@@ -37,6 +38,8 @@ class PedidoController extends Controller
             'productos.*.id' => 'required|exists:productos,id',
             'productos.*.cantidad' => 'required|integer|min:1',
             'cupon_id' => 'nullable|exists:cupones,id', // Validar el cupon_id
+            'payment_method' => 'required|string', // Validar el método de pago
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048', // Validar el comprobante (voucher)
         ]);
         // Obtener el usuario autenticado
         $user = auth()->user();
@@ -47,6 +50,20 @@ class PedidoController extends Controller
         $pedido->total_to_pay = $request->total_to_pay;
         $pedido->pending = $request->pending;
         $pedido->cupon_id = $request->cupon_id;
+        $pedido->payment_method = $request->payment_method; // Asignar el método de pago
+
+        // Manejar el archivo del comprobante
+        if ($request->file('voucher')) {
+            // Eliminar el comprobante anterior si es necesario
+            if ($pedido->voucher) {
+                Storage::delete("vouchers/" . $pedido->voucher);
+            }
+
+            $voucher = $request->file('voucher');
+            $nombreVoucher = md5_file($voucher->getPathname()) . '.' . $voucher->getClientOriginalExtension();
+            $voucher->move("vouchers/", $nombreVoucher); // Mover el archivo a la carpeta 'vouchers'
+            $pedido->voucher = $nombreVoucher; // Guardar el nombre del archivo en el modelo
+        }
         $pedido->save(); // Guardar el pedido en la base de datos
         // Asociar productos al pedido
         foreach ($request->productos as $producto) {

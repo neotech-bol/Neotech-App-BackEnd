@@ -43,6 +43,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ActivateUser ::class, // Agrega tu middleware aquí
+            'throttle:120,1', // Permite 120 solicitudes por minuto por usuario
         ],
     ];
 

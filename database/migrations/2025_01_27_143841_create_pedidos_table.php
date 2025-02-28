@@ -19,6 +19,8 @@ return new class extends Migration
             $table->decimal('total_to_pay', 10, 2)->nullable();
             $table->decimal('pending', 10, 2)->nullable();
             $table->boolean('estado')->default(false);
+            $table->string('payment_method')->nullable(); // Agregando el método de pago
+            $table->string('voucher')->nullable(); // Agregando el campo para el comprobante (voucher)
             $table->timestamps();
         });
     }

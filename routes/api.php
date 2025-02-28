@@ -6,6 +6,7 @@ use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CatalogoHistorialController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ContactanosController;
 use App\Http\Controllers\CuponController;
 use App\Http\Controllers\favoriteController;
 use App\Http\Controllers\PedidoController;
@@ -43,7 +44,6 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/usuario/{id}', [UserController::class, 'show']);
     Route::put('/usuario/{id}', [UserController::class, 'update']);
     Route::delete('/usuario/{id}', [UserController::class, 'changeEstado']);
-    Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
     Route::get('/usuarios/activos', [UserController::class, 'getUsuariosActivos']);
     Route::get('/usuarios/inactivos', [UserController::class, 'getUsuariosInactivos']);
     //
@@ -68,9 +68,8 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::delete('/catalogo/{id}', [CatalogoController::class, 'destroy']);
 
     //Historial de catalogos
-    Route::get('/historiales', [CatalogoHistorialController::class, 'index']);
-    Route::get('/historiales/{id}', [CatalogoHistorialController::class, 'show']);
-
+    Route::get('catalogos/historiales', [CatalogoHistorialController::class, 'index']);
+    Route::delete('/historiales/{id}', [CatalogoHistorialController::class, 'changeStatus']);
     //categorias
     Route::get('/categorias', [CategoriaController::class, 'index']);
     Route::post('/categoria-nueva', [CategoriaController::class, 'store']);
@@ -89,11 +88,6 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     //favorites
     Route::get('/favorites', [favoriteController::class, 'index']);
     Route::post('/favorite-nuevo', [favoriteController::class, 'store']);
-
-    //Rating
-    Route::post('/ratings', [RatingController::class, 'store']);
-    Route::put('/ratings/{id}', [RatingController::class, 'update']);
-    Route::get('/ratings', [RatingController::class, 'index']);
 
     //Pedidos
     Route::get('/pedidos', [PedidoController::class, 'index']);
@@ -127,6 +121,15 @@ Route::group(["middleware" => "auth:sanctum"], function () {
       //
   Route::post('/usuario/departamento', [UserController::class, 'updateDepartment']);
 
+  //Contactanos
+  Route::get('/contacto', [ContactanosController::class, 'index']);
+  Route::delete('/contacto/{id}', [ContactanosController::class, 'destroy']);
+  Route::get('/contactos-total', [ContactanosController::class, 'countContactanos']);
+
+  //
+  Route::put('/usuario-edit', [UserController::class, 'updateAuthenticatedUser']); // Actualizar una calificación existente
+  //permisos user
+  Route::get('/usuario-permiso', [UserController::class, 'obtenerPermisos']);
 });
 
 //Catalogos activos
@@ -137,4 +140,25 @@ Route::get('/producto-ver/{id}', [ProductosController::class, 'showProductoUser'
 Route::get('/productos-recientes', [ProductosController::class, 'productosRecientes']);
 Route::get('/categorias-activas-home', [CategoriaController::class, 'indexActivos']);
 Route::get('/productos/filtrar', [ProductosController::class, 'filtrarProductos']);
+Route::get('/historiales-activos', [CatalogoHistorialController::class, 'indexActivos']);
+Route::get('/historiales-activos-ids', [CatalogoHistorialController::class, 'getActiveHistorials']);
+Route::get('/historiales/{id}', [CatalogoHistorialController::class, 'show']);
+//contactanos
+Route::post('/contacto-nuevo', [ContactanosController::class, 'store']);
+Route::get('/catalogos-activos-ids', [CatalogoController::class, 'getActiveCatalogos']);
+Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoActive']);
 
+
+
+
+
+
+
+//user autenticado 
+Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
+
+
+    //Rating
+    Route::post('/ratings', [RatingController::class, 'store']);
+    Route::put('/ratings/{id}', [RatingController::class, 'update']);
+    Route::get('/ratings', [RatingController::class, 'index']);

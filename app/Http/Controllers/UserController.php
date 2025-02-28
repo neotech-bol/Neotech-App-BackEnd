@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -220,7 +221,7 @@ class UserController extends Controller
             // Retornar un error si no hay usuario autenticado
             return response()->json([
                 "mensaje" => "No hay usuario autenticado"
-            ], 401);
+            ], 501);
         }
     }
     public function updateDepartment(Request $request)
@@ -281,36 +282,42 @@ class UserController extends Controller
         }
     }
     // Obtener usuarios activos
-public function getUsuariosActivos()
-{
-    $usuariosActivos = User::where('estado', true)->with('roles')->get(); // Obtener usuarios donde estado es true
-    return response()->json(["mensaje" => "Usuarios activos cargados correctamente", "datos" => $usuariosActivos], 200);
-}
+    public function getUsuariosActivos()
+    {
+        $usuariosActivos = User::where('estado', true)->with('roles')->get(); // Obtener usuarios donde estado es true
+        return response()->json(["mensaje" => "Usuarios activos cargados correctamente", "datos" => $usuariosActivos], 200);
+    }
 
-// Obtener usuarios inactivos
-public function getUsuariosInactivos()
-{
-    $usuariosInactivos = User::where('estado', false)->with('roles')->get(); // Obtener usuarios donde estado es false
-    return response()->json(["mensaje" => "Usuarios inactivos cargados correctamente", "datos" => $usuariosInactivos], 200);
-}
-// Obtener el total de usuarios
-public function totalUsuarios()
-{
-    $totalUsuarios = User::count(); // Contar todos los usuarios
-    return response()->json(['total_usuarios' => $totalUsuarios], 200);
-}
+    // Obtener usuarios inactivos
+    public function getUsuariosInactivos()
+    {
+        $usuariosInactivos = User::where('estado', false)->with('roles')->get(); // Obtener usuarios donde estado es false
+        return response()->json(["mensaje" => "Usuarios inactivos cargados correctamente", "datos" => $usuariosInactivos], 200);
+    }
+    // Obtener el total de usuarios
+    public function totalUsuarios()
+    {
+        $totalUsuarios = User::count(); // Contar todos los usuarios
+        return response()->json(['total_usuarios' => $totalUsuarios], 200);
+    }
 
-// Obtener el total de usuarios activos
-public function totalUsuariosActivos()
-{
-    $totalActivos = User::where('estado', true)->count(); // Contar usuarios donde estado es true
-    return response()->json(['total_usuarios_activos' => $totalActivos], 200);
-}
+    // Obtener el total de usuarios activos
+    public function totalUsuariosActivos()
+    {
+        $totalActivos = User::where('estado', true)->count(); // Contar usuarios donde estado es true
+        return response()->json(['total_usuarios_activos' => $totalActivos], 200);
+    }
 
-// Obtener el total de usuarios inactivos
-public function totalUsuariosInactivos()
-{
-    $totalInactivos = User::where('estado', false)->count(); // Contar usuarios donde estado es false
-    return response()->json(['total_usuarios_inactivos' => $totalInactivos], 200);
-}
+    // Obtener el total de usuarios inactivos
+    public function totalUsuariosInactivos()
+    {
+        $totalInactivos = User::where('estado', false)->count(); // Contar usuarios donde estado es false
+        return response()->json(['total_usuarios_inactivos' => $totalInactivos], 200);
+    }
+    public function obtenerPermisos(){
+        $usuario = User::find(Auth::id());
+        $permisos = $usuario->getPermissionsViaRoles();
+        $nombresPermisos = $permisos->pluck('name')->toArray();
+        return response()->json(['mensaje'=>'Permisos cargados', 'datos'=>$nombresPermisos],200);
+    }  //Obtener Permisos
 }
