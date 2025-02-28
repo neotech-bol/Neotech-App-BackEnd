@@ -9,9 +9,6 @@ use Spatie\Permission\Models\Role;
 
 class PermissionsTableSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $permissions = [
@@ -22,21 +19,24 @@ class PermissionsTableSeeder extends Seeder
             'Gestionar Roles',
             'Gestionar Pedidos',
             'Gestionar Cupones'
-            // Agrega más permisos según sea necesario
         ];
 
-        // Crear los permisos en la base de datos
+        // Usa firstOrCreate() para evitar duplicados
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission, "guard_name" => "sanctum"]);
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'sanctum'], // Busca por estos campos
+                ['name' => $permission, 'guard_name' => 'sanctum']  // Crea si no existe
+            );
         }
 
-        // Crear el rol de super-admin
-        $superAdminRole = Role::create([
+        // Crea el rol solo si no existe
+        $superAdminRole = Role::firstOrCreate([
             'name' => 'super-admin',
             'guard_name' => 'sanctum',
         ]);
 
-        // Asignar todos los permisos al rol de super-admin
-        $superAdminRole->givePermissionTo(Permission::all());
+        // Sincroniza todos los permisos (asegura que tenga los últimos)
+        $superAdminRole->syncPermissions(Permission::all());
     }
+    //comentario para el cpanel
 }
