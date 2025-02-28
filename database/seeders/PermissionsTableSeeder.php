@@ -39,4 +39,5 @@ class PermissionsTableSeeder extends Seeder
         $superAdminRole->syncPermissions(Permission::all());
     }
     //comentario para el cpanel
+    //comentatio para el cpanel 2
 }
