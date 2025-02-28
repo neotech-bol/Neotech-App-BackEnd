@@ -117,17 +117,15 @@ class CatalogoController extends Controller
 
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogos->transform(function ($catalogo) {
-            $catalogo->banner = asset("images/categorias/banners/" . $catalogo->banner); // Asumiendo que el banner está en la ruta especificada
-
             $catalogo->categorias->transform(function ($categoria) {
-                $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
+                $categoria->banner = asset("public/images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
 
                 $categoria->productos->transform(function ($producto) {
-                    $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
+                    $producto->imagen_principal = asset("public/images/productos/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
 
                     // Transformar las imágenes del producto
                     $producto->images->transform(function ($image) {
-                        $image->imagen = asset("images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
+                        $image->imagen = asset("public/images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
                         return $image;
                     });
 
