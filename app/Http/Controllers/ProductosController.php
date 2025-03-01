@@ -341,7 +341,7 @@ class ProductosController extends Controller
     public function productosRecientes()
     {
         // Obtener los 4 productos más recientes
-        $productos = Producto::with('images')
+        $productos = Producto::with('images', 'categoria')
             ->orderBy('created_at', 'desc') // Ordenar por fecha de creación
             ->take(5) // Limitar a 4 productos
             ->get();
