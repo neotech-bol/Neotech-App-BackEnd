@@ -46,6 +46,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::delete('/usuario/{id}', [UserController::class, 'changeEstado']);
     Route::get('/usuarios/activos', [UserController::class, 'getUsuariosActivos']);
     Route::get('/usuarios/inactivos', [UserController::class, 'getUsuariosInactivos']);
+    Route::put('/user/update-basic-info', [UserController::class, 'updateBasicInfo']);
     //
     Route::get('/usuarios/total', [UserController::class, 'totalUsuarios']); // Ruta para obtener el total de usuarios
     Route::get('/usuarios/total/activos', [UserController::class, 'totalUsuariosActivos']); // Ruta para obtener el total de usuarios activos

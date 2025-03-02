@@ -260,6 +260,49 @@ class UserController extends Controller
             ], 401);
         }
     }
+    public function updateBasicInfo(Request $request)
+{
+    // Obtener el usuario autenticado
+    $user = auth()->user();
+
+    // Verificar si el usuario está autenticado
+    if (!$user) {
+        return response()->json([
+            "mensaje" => "No estás autenticado para realizar esta acción."
+        ], 401);
+    }
+
+    // Validar la solicitud
+    $request->validate([
+        'nombre' => 'sometimes|required|string|max:50',
+        'apellido' => 'sometimes|required|string|max:50',
+        'direccion' => 'sometimes|required|string',
+        'telefono' => 'sometimes|required|string|max:20',
+        'email' => 'sometimes|required|string|email|max:100|unique:users,email,' . $user->id,
+    ]);
+
+    // Actualizar los campos del usuario
+    if ($request->has('nombre')) {
+        $user->nombre = $request->nombre;
+    }
+    if ($request->has('apellido')) {
+        $user->apellido = $request->apellido;
+    }
+    if ($request->has('direccion')) {
+        $user->direccion = $request->direccion;
+    }
+    if ($request->has('telefono')) {
+        $user->telefono = $request->telefono;
+    }
+    if ($request->has('email')) {
+        $user->email = $request->email;
+    }
+
+    // Guardar los cambios
+    $user->save();
+
+    return response()->json(["mensaje" => "Información básica actualizada correctamente", "datos" => $user], 200);
+}
 
     public function showDepartment()
     {
