@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Pedido extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'total_amount', 'total_to_pay', 'pending'];
+    protected $fillable = ['user_id', 'total_amount', 'total_to_pay', 'pending', 'cupon_id', 'payment_method', 'voucher'];
     public function user()
     {
         return $this->belongsTo(User::class);
