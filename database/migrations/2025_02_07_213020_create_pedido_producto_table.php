@@ -15,7 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('pedido_id')->constrained('pedidos')->onDelete('cascade');
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
-            $table->integer('cantidad')->default(1); // Puedes agregar una columna para la cantidad
+            $table->foreignId('modelo_id')->nullable()->constrained('modelo_productos')->onDelete('cascade');
+            $table->decimal('precio', 10, 2)->nullable(); // Precio al momento de la compra
+            $table->integer('cantidad')->default(1);
+            $table->string('color')->nullable(); // Opcional: si también quieres guardar el color
             $table->timestamps();
         });
     }

@@ -10,6 +10,7 @@ use App\Http\Controllers\ContactanosController;
 use App\Http\Controllers\CuponController;
 use App\Http\Controllers\favoriteController;
 use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\ProductoModelController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RolesPermisosController;
@@ -131,6 +132,10 @@ Route::group(["middleware" => "auth:sanctum"], function () {
   Route::put('/usuario-edit', [UserController::class, 'updateAuthenticatedUser']); // Actualizar una calificación existente
   //permisos user
   Route::get('/usuario-permiso', [UserController::class, 'obtenerPermisos']);
+
+  //Modelos Productos all
+Route::get('/modelos-productos', [ProductoModelController::class, 'index']);
+
 });
 
 //Catalogos activos

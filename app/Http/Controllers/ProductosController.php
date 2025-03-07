@@ -19,102 +19,94 @@ class ProductosController extends Controller
         return response()->json(["mensaje" => "Productos cargados correctamente", "datos" => $products], 200);
     }
     public function store(Request $request)
-    {
-        // Validar la solicitud
-        $request->validate([
-            "nombre" => "required|string|max:255",
-            "descripcion" => "nullable|string",
-            "precio" => "required|numeric",
-            "modelos" => "required|array", // Validar que se envíen modelos
-            "cantidad_minima" => "required|integer|min:1", // Hacer cantidad mínima opcional
-            "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima", // Hacer cantidad máxima opcional
-            "images" => "required|array",
-            "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048", // Validar que cada imagen sea un archivo de imagen, 
-            'caracteristicas' => "required|array",
-            /*  'colors.*' => 'nullable|string|regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/' */
+{
+    // Validación (mantén esta parte igual)
+    $request->validate([
+        "nombre" => "required|string|max:255",
+        "descripcion" => "nullable|string",
+        "precio" => "required|numeric",
+        "modelos" => "required|array",
+        "cantidad_minima" => "required|integer|min:1",
+        "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
+        "images" => "required|array",
+        "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048",
+        'caracteristicas' => "required|array",
+    ]);
 
-        ]);
-        // Iniciar una transacción
-        DB::beginTransaction();
-        try {
-            // Crear el producto
-            $item = new Producto();
-            $item->nombre = $request->nombre;
-            $item->descripcion = $request->descripcion;
-            $item->precio = $request->precio;
-            $item->categoria_id = $request->categoria_id;
-            $item->user_id = auth()->id(); // Asignar el ID del usuario autenticado
-            $item->cantidad_minima = $request->cantidad_minima;
-            $item->cantidad_maxima = $request->cantidad_maxima;
-            $item->cantidad = 0;
-            if ($request->file('imagen_principal')) {
-                $imagen_principal = $request->file('imagen_principal');
-                $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
-                $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
-                $item->imagen_principal = $nombreImagen;
-            }
-            $item->save(); // Guardar el producto primero
-            // Agregar modelos al producto
-            foreach ($request->modelos as $modeloData) {
-                try {
-                    $modeloData = json_decode($modeloData, true); // Decodificar el JSON
+    DB::beginTransaction();
+    try {
+        // Crear el producto (mantén esta parte igual)
+        $item = new Producto();
+        $item->nombre = $request->nombre;
+        $item->descripcion = $request->descripcion;
+        $item->precio = $request->precio;
+        $item->categoria_id = $request->categoria_id;
+        $item->user_id = auth()->id();
+        $item->cantidad_minima = $request->cantidad_minima;
+        $item->cantidad_maxima = $request->cantidad_maxima;
+        $item->cantidad = 0;
 
-                    if (is_array($modeloData)) {
-                        ModeloProducto::create([
-                            'nombre' => $modeloData['nombre'],
-                            'precio' => $modeloData['precio'],
-                            'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
-                            'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
-                            'producto_id' => $item->id,
-                        ]);
-                    } else {
-                        return response()->json(["mensaje" => "Error en los datos de los modelos"], 422);
-                    }
-                } catch (\Exception $e) {
-                    return response()->json(["mensaje" => "Error al crear el modelo: " . $e->getMessage()], 500);
-                }
-            }
-            // Agregar imágenes al producto
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $index => $imageData) {
-                    try {
-                        // Generar un nombre único para la imagen
-                        $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
-                        // Mover la imagen a la carpeta deseada
-                        $imageData->move("images/productos", $nombreImagen);
-
-                        // Obtener el color correspondiente
-                        $color = $request->input("colors.$index"); // Asegúrate de que el nombre sea correcto
-
-                        // Crear una nueva instancia de Image y guardar en la base de datos
-                        Image::create([
-                            'imagen' => $nombreImagen, // Nombre de la imagen
-                            'producto_id' => $item->id, // Asociar la imagen con el producto
-                            'color' => $color, // Color de la imagen
-                        ]);
-                    } catch (\Exception $e) {
-                        return response()->json(["mensaje" => "Error al cargar la imagen: " . $e->getMessage()], 500);
-                    }
-                }
-            }
-            $caracteristicas = $request->caracteristicas ?? [];
-            foreach ($caracteristicas as $caracteristica) {
-                if (!empty($caracteristica)) { // Verificar que la propiedad exista
-                    Caracteristica::create([
-                        "producto_id" => $item->id,
-                        "caracteristica" => $caracteristica
-                    ]);
-                }
-            }
-            // Confirmar la transacción
-            DB::commit();
-            return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
-        } catch (\Throwable $th) {
-            // Revertir la transacción en caso de error
-            DB::rollBack();
-            return response()->json(["mensaje" => "Error al crear el producto", "error" => $th->getMessage()], 500);
+        if ($request->file('imagen_principal')) {
+            $imagen_principal = $request->file('imagen_principal');
+            $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
+            $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
+            $item->imagen_principal = $nombreImagen;
         }
+        $item->save();
+
+        // Agregar modelos al producto (parte modificada)
+        foreach ($request->modelos as $modeloData) {
+            if (is_string($modeloData)) {
+                $modeloData = json_decode($modeloData, true);
+            }
+
+            if (!is_array($modeloData)) {
+                throw new \Exception("Datos de modelo inválidos");
+            }
+
+            ModeloProducto::create([
+                'nombre' => $modeloData['nombre'],
+                'precio' => $modeloData['precio'],
+                'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
+                'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
+                'producto_id' => $item->id,
+            ]);
+        }
+
+        // Agregar imágenes al producto (mantén esta parte igual)
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $imageData) {
+                $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
+                $imageData->move("images/productos", $nombreImagen);
+
+                $color = $request->input("colors.$index");
+
+                Image::create([
+                    'imagen' => $nombreImagen,
+                    'producto_id' => $item->id,
+                    'color' => $color,
+                ]);
+            }
+        }
+
+        // Agregar características (mantén esta parte igual)
+        $caracteristicas = $request->caracteristicas ?? [];
+        foreach ($caracteristicas as $caracteristica) {
+            if (!empty($caracteristica)) {
+                Caracteristica::create([
+                    "producto_id" => $item->id,
+                    "caracteristica" => $caracteristica
+                ]);
+            }
+        }
+
+        DB::commit();
+        return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
+    } catch (\Throwable $th) {
+        DB::rollBack();
+        return response()->json(["mensaje" => "Error al crear el producto", "error" => $th->getMessage()], 500);
     }
+}
     public function show(string $id)
     {
         $item = Producto::with('images', 'categoria', 'user', 'caracteristicas', 'modelos')->find($id);

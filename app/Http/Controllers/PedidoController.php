@@ -13,21 +13,39 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PedidoController extends Controller
 {
-    // Mostrar todos los pedidos
     public function index()
     {
-        $pedidos = Pedido::with('user', 'productos', 'cupon')->get(); // Carga los pedidos con usuarios y productos
+        $pedidos = Pedido::with('user', 'productos', 'cupon')->get();
         return response()->json(["message" => "Pedidos cargados", "datos" => $pedidos]);
     }
 
-    // Mostrar un pedido específico
     public function show($id)
     {
-        $pedido = Pedido::with('user', 'productos')->findOrFail($id); // Carga el pedido con usuario y productos
+        $pedido = Pedido::with(['user', 'productos.modelos', 'cupon'])->findOrFail($id);
+
+        if ($pedido->voucher) {
+            $pedido->voucher = asset('vouchers/' . $pedido->voucher);
+        }
+
+        $pedido->productos = $pedido->productos->map(function ($producto) {
+            $pivotData = $producto->pivot;
+
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'precio_base' => $producto->precio,
+                'cantidad' => $pivotData->cantidad,
+                'modelo_id' => $pivotData->modelo_id,
+                'precio_compra' => $pivotData->precio, // Precio al momento de la compra
+                'color' => $pivotData->color,
+                'subtotal' => $pivotData->precio * $pivotData->cantidad
+            ];
+        });
+
         return response()->json($pedido);
     }
 
-    // Crear un nuevo pedido
     public function store(Request $request)
     {
         $request->validate([
@@ -37,43 +55,47 @@ class PedidoController extends Controller
             'productos' => 'required|array',
             'productos.*.id' => 'required|exists:productos,id',
             'productos.*.cantidad' => 'required|integer|min:1',
-            'cupon_id' => 'nullable|exists:cupones,id', // Validar el cupon_id
-            'payment_method' => 'required|string', // Validar el método de pago
-            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048', // Validar el comprobante (voucher)
+            'productos.*.modelo_id' => 'nullable|exists:modelo_productos,id',
+            'productos.*.precio' => 'required|numeric',
+            'productos.*.color' => 'nullable|string',
+            'cupon_id' => 'nullable|exists:cupones,id',
+            'payment_method' => 'required|string',
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
-        // Obtener el usuario autenticado
+
         $user = auth()->user();
-        // Crear un nuevo pedido
         $pedido = new Pedido();
-        $pedido->user_id = $user->id; // Asignar el ID del usuario autenticado
+        $pedido->user_id = $user->id;
         $pedido->total_amount = $request->total_amount;
         $pedido->total_to_pay = $request->total_to_pay;
         $pedido->pending = $request->pending;
         $pedido->cupon_id = $request->cupon_id;
-        $pedido->payment_method = $request->payment_method; // Asignar el método de pago
+        $pedido->payment_method = $request->payment_method;
 
-        // Manejar el archivo del comprobante
         if ($request->file('voucher')) {
-            // Eliminar el comprobante anterior si es necesario
             if ($pedido->voucher) {
                 Storage::delete("vouchers/" . $pedido->voucher);
             }
 
             $voucher = $request->file('voucher');
             $nombreVoucher = md5_file($voucher->getPathname()) . '.' . $voucher->getClientOriginalExtension();
-            $voucher->move("vouchers/", $nombreVoucher); // Mover el archivo a la carpeta 'vouchers'
-            $pedido->voucher = $nombreVoucher; // Guardar el nombre del archivo en el modelo
+            $voucher->move("vouchers/", $nombreVoucher);
+            $pedido->voucher = $nombreVoucher;
         }
-        $pedido->save(); // Guardar el pedido en la base de datos
-        // Asociar productos al pedido
+        $pedido->save();
+
         foreach ($request->productos as $producto) {
-            $pedido->productos()->attach($producto['id'], ['cantidad' => $producto['cantidad']]);
+            $pedido->productos()->attach($producto['id'], [
+                'cantidad' => $producto['cantidad'],
+                'modelo_id' => $producto['modelo_id'] ?? null,
+                'precio' => $producto['precio'],
+                'color' => $producto['color'] ?? null
+            ]);
         }
 
         return response()->json($pedido, 201);
     }
 
-    // Actualizar un pedido existente
     public function update(Request $request, $id)
     {
         $pedido = Pedido::findOrFail($id);
@@ -88,9 +110,8 @@ class PedidoController extends Controller
 
         $pedido->update($request->only('user_id', 'monto_total'));
 
-        // Actualizar productos del pedido
         if ($request->has('productos')) {
-            $pedido->productos()->detach(); // Eliminar productos existentes
+            $pedido->productos()->detach();
             foreach ($request->productos as $producto) {
                 $pedido->productos()->attach($producto['id'], ['cantidad' => $producto['cantidad']]);
             }
@@ -99,83 +120,122 @@ class PedidoController extends Controller
         return response()->json($pedido);
     }
 
-    // Marcar un pedido como completado
     public function pedidoCompletado($id)
     {
         $pedido = Pedido::findOrFail($id);
 
-        // Verificar si el pedido ya está completado
         if ($pedido->estado) {
-            return response()->json(['message' => 'El pedido ya está completado.'], 400); // O cualquier otro código de estado que consideres apropiado
+            return response()->json(['message' => 'El pedido ya está completado.'], 400);
         }
 
-        // Cambiar el estado del pedido a completado
-        $pedido->estado = true; // Asumimos que 'true' significa completado
-        $pedido->save(); // Guardar los cambios en la base de datos
+        $pedido->estado = true;
+        $pedido->save();
 
         return response()->json(['message' => 'Pedido completado con éxito.'], 200);
     }
-    // Exportar pedidos a Excel
+
     public function exportarPedidos()
     {
         return Excel::download(new PedidosExport, 'pedidos.xlsx');
     }
-    // Descargar un PDF con los detalles del pedido
-    public function descargarPedidoPDF($id)
+
+    public function descargarPedidoPDF($id, Request $request)
     {
-        // Obtener el pedido con sus detalles
-        $pedido = Pedido::with(['user', 'productos'])->findOrFail($id);
+        try {
+            $pedido = Pedido::with(['user', 'productos', 'cupon'])->findOrFail($id);
 
-        // Generar el PDF
-        $pdf = Pdf::loadView('pedidos.pdf', compact('pedido'));
+            $pdf = Pdf::loadView('pedidos.pdf', compact('pedido'));
 
-        // Descargar el PDF
-        return $pdf->download('pedido_' . $pedido->id . '.pdf');
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+            $responseFormat = $request->query('format', 'binary');
+
+            switch ($responseFormat) {
+                case 'base64':
+                    $base64 = base64_encode($pdf->output());
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'pedido_id' => $pedido->id,
+                            'filename' => 'pedido_' . $pedido->id . '.pdf',
+                            'content_type' => 'application/pdf',
+                            'base64' => $base64,
+                        ],
+                        'message' => 'PDF generado exitosamente'
+                    ]);
+
+                case 'url':
+                    $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
+                    Storage::disk('public')->put($filename, $pdf->output());
+
+                    $url = Storage::disk('public')->url($filename);
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'pedido_id' => $pedido->id,
+                            'filename' => 'pedido_' . $pedido->id . '.pdf',
+                            'url' => $url,
+                            'expires_at' => now()->addDay()->toIso8601String(),
+                        ],
+                        'message' => 'URL de descarga generada exitosamente'
+                    ]);
+
+                case 'binary':
+                default:
+                    return $pdf->download('pedido_' . $pedido->id . '.pdf');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el PDF: ' . $e->getMessage()
+            ], 500);
+        }
     }
-    // Repetir un pedido existente
+
     public function repetirPedido($id)
     {
-        // Obtener el pedido original con sus detalles
         $pedidoOriginal = Pedido::with(['productos'])->findOrFail($id);
 
-        // Obtener el usuario autenticado
         $user = auth()->user();
 
-        // Crear un nuevo pedido
         $nuevoPedido = new Pedido();
-        $nuevoPedido->user_id = $user->id; // Asignar el ID del usuario autenticado
-        $nuevoPedido->total_amount = $pedidoOriginal->total_amount; // Copiar el monto total
-        $nuevoPedido->total_to_pay = $pedidoOriginal->total_to_pay; // Copiar el monto a pagar
-        $nuevoPedido->pending = $pedidoOriginal->pending; // Copiar el monto pendiente
-        $nuevoPedido->cupon_id = $pedidoOriginal->cupon_id; // Copiar el cupon_id
-        $nuevoPedido->estado = 0; // Asumimos que el nuevo pedido está pendiente
-        $nuevoPedido->save(); // Guardar el nuevo pedido en la base de datos
+        $nuevoPedido->user_id = $user->id;
+        $nuevoPedido->total_amount = $pedidoOriginal->total_amount;
+        $nuevoPedido->total_to_pay = $pedidoOriginal->total_to_pay;
+        $nuevoPedido->pending = $pedidoOriginal->pending;
+        $nuevoPedido->cupon_id = $pedidoOriginal->cupon_id;
+        $nuevoPedido->estado = 0;
+        $nuevoPedido->save();
 
-        // Asociar los productos del pedido original al nuevo pedido
         foreach ($pedidoOriginal->productos as $producto) {
             $nuevoPedido->productos()->attach($producto->id, ['cantidad' => $producto->pivot->cantidad]);
         }
 
         return response()->json(['message' => 'Pedido repetido con éxito.', 'nuevo_pedido' => $nuevoPedido], 201);
     }
-    // Obtener el total de pedidos en proceso
+
     public function totalPedidosEnProceso()
     {
-        $totalEnProceso = Pedido::where('estado', false)->count(); // Asumiendo que 'estado' es false para pedidos en proceso
+        $totalEnProceso = Pedido::where('estado', false)->count();
         return response()->json(['total_pedidos_en_proceso' => $totalEnProceso], 200);
     }
 
-    // Obtener el total de pedidos completados
     public function totalPedidosCompletados()
     {
-        $totalCompletados = Pedido::where('estado', true)->count(); // Asumiendo que 'estado' es true para pedidos completados
+        $totalCompletados = Pedido::where('estado', true)->count();
         return response()->json(['total_pedidos_completados' => $totalCompletados], 200);
     }
 
-    // Obtener el total general de pedidos
     public function totalPedidos()
     {
-        $totalPedidos = Pedido::count(); // Contar todos los pedidos
+        $totalPedidos = Pedido::count();
         return response()->json(['total_pedidos' => $totalPedidos], 200);
     }
 }
