@@ -29,7 +29,7 @@ class ProductosController extends Controller
         "cantidad_minima" => "required|integer|min:1",
         "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
         "images" => "required|array",
-        "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048",
+        "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
         'caracteristicas' => "required|array",
     ]);
 
@@ -178,7 +178,7 @@ class ProductosController extends Controller
             "modelos" => "nullable|array",
             "categoria_id" => "nullable|integer",
             "images" => "nullable|array",
-            "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048",
+            "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
             'caracteristicas' => "nullable|array",
             'colors' => "nullable|array", // Asegúrate de validar los colores
         ]);
