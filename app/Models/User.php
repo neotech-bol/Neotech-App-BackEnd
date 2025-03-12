@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\VerificarCorreoElectronico;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,12 +27,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'nit',
         'direccion',
         'telefono',
-        'edad',
+        'fecha_de_nacimiento',
         'genero',
         'email',
         'password',
         'email_verified_at',
-        'departamento'
+        'departamento',
+        'pais',
     ];
 
     /**
@@ -60,5 +62,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function favorites()
     {
         return $this->hasMany(Favorite::class);
+    }
+        /**
+     * Enviar la notificación de verificación de correo electrónico en español.
+     *
+     * @return void
+     */
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new VerificarCorreoElectronico);
     }
 }

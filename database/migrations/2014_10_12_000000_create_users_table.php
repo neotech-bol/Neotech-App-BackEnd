@@ -19,12 +19,13 @@ return new class extends Migration
             $table->string('nit')->unique();
             $table->text('direccion');
             $table->string('telefono', 20);
-            $table->integer('edad');
+            $table->date('fecha_de_nacimiento');
             $table->enum('genero', ['M', 'F', 'Otro']);
             $table->string('email', 100)->unique();
             $table->timestamp('email_verified_at')->nullable()->default(null);
             $table->string('password');
             $table->string('departamento')->nullable();
+            $table->string('pais')->nullable();
             $table->boolean('estado')->default(false);
             $table->rememberToken();
             $table->timestamps();

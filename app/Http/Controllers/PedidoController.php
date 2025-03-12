@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
@@ -142,23 +143,35 @@ class PedidoController extends Controller
     public function descargarPedidoPDF($id, Request $request)
     {
         try {
-            $pedido = Pedido::with(['user', 'productos', 'cupon'])->findOrFail($id);
-
+            // Carga el pedido con sus relaciones necesarias
+            $pedido = Pedido::with([
+                'user', 
+                'productos.modelos', 
+                'productos.categoria', 
+                'cupon'
+            ])->findOrFail($id);
+    
+            // Configuración del PDF
             $pdf = Pdf::loadView('pedidos.pdf', compact('pedido'));
-
             $pdf->setPaper('a4', 'portrait');
             $pdf->setOptions([
                 'isHtml5ParserEnabled' => true,
                 'isRemoteEnabled' => true,
                 'defaultFont' => 'sans-serif',
+                'dpi' => 96, // Reducir DPI para disminuir tamaño
+                'fontHeightRatio' => 1.1, // Ajustar ratio de altura de fuente
+                'chroot' => [
+                    public_path('storage'), // Permitir acceso a archivos en storage/app/public
+                    public_path(), // Permitir acceso a archivos en public
+                ]
             ]);
-
+    
+            // Determinar formato de respuesta
             $responseFormat = $request->query('format', 'binary');
-
+    
             switch ($responseFormat) {
                 case 'base64':
                     $base64 = base64_encode($pdf->output());
-
                     return response()->json([
                         'success' => true,
                         'data' => [
@@ -169,13 +182,15 @@ class PedidoController extends Controller
                         ],
                         'message' => 'PDF generado exitosamente'
                     ]);
-
+    
                 case 'url':
+                    // Generar nombre único para el archivo
                     $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
+                    
+                    // Guardar el PDF en el almacenamiento
                     Storage::disk('public')->put($filename, $pdf->output());
-
                     $url = Storage::disk('public')->url($filename);
-
+    
                     return response()->json([
                         'success' => true,
                         'data' => [
@@ -186,12 +201,16 @@ class PedidoController extends Controller
                         ],
                         'message' => 'URL de descarga generada exitosamente'
                     ]);
-
+    
                 case 'binary':
                 default:
+                    // Configurar nombre del archivo para descarga
                     return $pdf->download('pedido_' . $pedido->id . '.pdf');
             }
         } catch (\Exception $e) {
+            // Registrar el error para depuración
+            \Log::error('Error al generar PDF: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error al generar el PDF: ' . $e->getMessage()
@@ -237,5 +256,217 @@ class PedidoController extends Controller
     {
         $totalPedidos = Pedido::count();
         return response()->json(['total_pedidos' => $totalPedidos], 200);
+    }
+
+    /**
+     * Genera un PDF con todos los pedidos completados (estado = 1)
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function generarPdfPedidosCompletados(Request $request)
+    {
+        try {
+            // Cargar pedidos con relaciones necesarias
+            $pedidos = Pedido::with([
+                'user',
+                'productos.modelos',
+                'productos.categoria',
+                'cupon'
+            ])
+                ->where('estado', true)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Procesar los datos para el reporte
+            $fechaActual = Carbon::now()->format('d/m/Y H:i');
+            $totalPedidos = $pedidos->count();
+            $montoTotal = $pedidos->sum('total_amount');
+            $totalProductos = 0;
+
+            // Calcular el total de productos vendidos
+            foreach ($pedidos as $pedido) {
+                foreach ($pedido->productos as $producto) {
+                    $totalProductos += $producto->pivot->cantidad;
+                }
+            }
+
+            // Preparar datos para la vista
+            $data = [
+                'pedidos' => $pedidos,
+                'fechaGeneracion' => $fechaActual,
+                'totalPedidos' => $totalPedidos,
+                'montoTotal' => $montoTotal,
+                'totalProductos' => $totalProductos,
+                'titulo' => 'Pedidos Completados',
+                'estado' => 'completado',
+                'totalCompletados' => $totalPedidos,
+                'totalEnProceso' => Pedido::where('estado', false)->count()
+            ];
+
+            // Generar el PDF
+            $pdf = PDF::loadView('pedidos.reporte', $data);
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+            // Determinar el formato de respuesta
+            $responseFormat = $request->query('format', 'binary');
+            $filename = 'pedidos_completados_' . Carbon::now()->format('dmY_His') . '.pdf';
+
+            switch ($responseFormat) {
+                case 'base64':
+                    $base64 = base64_encode($pdf->output());
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'filename' => $filename,
+                            'content_type' => 'application/pdf',
+                            'base64' => $base64,
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'PDF de pedidos completados generado exitosamente'
+                    ]);
+
+                case 'url':
+                    $path = 'pedidos/' . $filename;
+                    Storage::disk('public')->put($path, $pdf->output());
+                    $url = Storage::disk('public')->url($path);
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'filename' => $filename,
+                            'url' => $url,
+                            'expires_at' => now()->addDay()->toIso8601String(),
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'URL de descarga generada exitosamente'
+                    ]);
+
+                case 'binary':
+                default:
+                    return $pdf->download($filename);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el PDF: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
+     * Genera un PDF con todos los pedidos en proceso (estado = 0)
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function generarPdfPedidosEnProceso(Request $request)
+    {
+        try {
+            // Cargar pedidos con relaciones necesarias
+            $pedidos = Pedido::with([
+                'user',
+                'productos.modelos',
+                'productos.categoria',
+                'cupon'
+            ])
+                ->where('estado', false)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Procesar los datos para el reporte
+            $fechaActual = Carbon::now()->format('d/m/Y H:i');
+            $totalPedidos = $pedidos->count();
+            $montoTotal = $pedidos->sum('total_amount');
+            $totalProductos = 0;
+
+            // Calcular el total de productos en proceso
+            foreach ($pedidos as $pedido) {
+                foreach ($pedido->productos as $producto) {
+                    $totalProductos += $producto->pivot->cantidad;
+                }
+            }
+
+            // Preparar datos para la vista
+            $data = [
+                'pedidos' => $pedidos,
+                'fechaGeneracion' => $fechaActual,
+                'totalPedidos' => $totalPedidos,
+                'montoTotal' => $montoTotal,
+                'totalProductos' => $totalProductos,
+                'titulo' => 'Pedidos en Proceso',
+                'estado' => 'en proceso',
+                'totalCompletados' => Pedido::where('estado', true)->count(),
+                'totalEnProceso' => $totalPedidos
+            ];
+
+            // Generar el PDF
+            $pdf = PDF::loadView('pedidos.reporte', $data);
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+            // Determinar el formato de respuesta
+            $responseFormat = $request->query('format', 'binary');
+            $filename = 'pedidos_en_proceso_' . Carbon::now()->format('dmY_His') . '.pdf';
+
+            switch ($responseFormat) {
+                case 'base64':
+                    $base64 = base64_encode($pdf->output());
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'filename' => $filename,
+                            'content_type' => 'application/pdf',
+                            'base64' => $base64,
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'PDF de pedidos en proceso generado exitosamente'
+                    ]);
+
+                case 'url':
+                    $path = 'pedidos/' . $filename;
+                    Storage::disk('public')->put($path, $pdf->output());
+                    $url = Storage::disk('public')->url($path);
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'filename' => $filename,
+                            'url' => $url,
+                            'expires_at' => now()->addDay()->toIso8601String(),
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'URL de descarga generada exitosamente'
+                    ]);
+
+                case 'binary':
+                default:
+                    return $pdf->download($filename);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el PDF: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
     }
 }

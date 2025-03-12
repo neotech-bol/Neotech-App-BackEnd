@@ -31,12 +31,21 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+// Ruta de verificación de correo (debe ser accesible sin autenticación)
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verificarEmail'])
+    ->middleware(['signed'])  // Solo necesita ser firmada, no autenticada
+    ->name('verification.verify');
 
+// Ruta para solicitar un nuevo enlace sin estar autenticado
+Route::post('/email/generate-verification', [AuthController::class, 'generarEnlaceVerificacion'])
+    ->middleware(['throttle:6,1'])
+    ->name('verification.generate');
 
 Route::group(["middleware" => "auth:sanctum"], function () {
-    Route::get('email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->name('verification.verify');
-    Route::post('email/verification-notification', [VerificationController::class, 'resend'])->name('verification.send');
-
+    // Ruta para reenviar el correo de verificación cuando ya está autenticado
+    Route::post('/email/verification-notification', [AuthController::class, 'enviarVerificacionEmail'])
+        ->middleware(['throttle:6,1'])
+        ->name('verification.send');
     Route::post("/logout", [AuthController::class, "logout"]);
 
     //Usuarios
@@ -52,7 +61,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/usuarios/total', [UserController::class, 'totalUsuarios']); // Ruta para obtener el total de usuarios
     Route::get('/usuarios/total/activos', [UserController::class, 'totalUsuariosActivos']); // Ruta para obtener el total de usuarios activos
     Route::get('/usuarios/total/inactivos', [UserController::class, 'totalUsuariosInactivos']); // Ruta para obtener el total de usuarios inactivos
-  
+
     //Roles y permisos
     Route::get('/permisos', [RolesPermisosController::class, 'indexPermissions']);
     Route::get('/roles', [RolesPermisosController::class, 'indexRoles']);
@@ -120,22 +129,26 @@ Route::group(["middleware" => "auth:sanctum"], function () {
         Route::put('/calificacion/{id}', [CalificacionController::class, 'update']); // Actualizar una calificación existente
         Route::delete('/calificacion/{id}', [CalificacionController::class, 'destroy']); // Eliminar una calificación
     });
-      //
-  Route::post('/usuario/departamento', [UserController::class, 'updateDepartment']);
+    //
+    Route::post('/usuario/departamento', [UserController::class, 'updateDepartment']);
 
-  //Contactanos
-  Route::get('/contacto', [ContactanosController::class, 'index']);
-  Route::delete('/contacto/{id}', [ContactanosController::class, 'destroy']);
-  Route::get('/contactos-total', [ContactanosController::class, 'countContactanos']);
+    //Contactanos
+    Route::get('/contacto', [ContactanosController::class, 'index']);
+    Route::delete('/contacto/{id}', [ContactanosController::class, 'destroy']);
+    Route::get('/contactos-total', [ContactanosController::class, 'countContactanos']);
 
-  //
-  Route::put('/usuario-edit', [UserController::class, 'updateAuthenticatedUser']); // Actualizar una calificación existente
-  //permisos user
-  Route::get('/usuario-permiso', [UserController::class, 'obtenerPermisos']);
+    //
+    Route::put('/usuario-edit', [UserController::class, 'updateAuthenticatedUser']); // Actualizar una calificación existente
+    //permisos user
+    Route::get('/usuario-permiso', [UserController::class, 'obtenerPermisos']);
 
-  //Modelos Productos all
-Route::get('/modelos-productos', [ProductoModelController::class, 'index']);
+    //Modelos Productos all
+    Route::get('/modelos-productos', [ProductoModelController::class, 'index']);
 
+    //pedidos reportes
+// Rutas para generación de PDFs
+Route::get('/pedidos/pdf/completados', [PedidoController::class, 'generarPdfPedidosCompletados'])->name('pedidos.pdf.completados');
+Route::get('/pedidos/pdf/en-proceso', [PedidoController::class, 'generarPdfPedidosEnProceso'])->name('pedidos.pdf.en-proceso');
 });
 
 //Catalogos activos
@@ -164,7 +177,7 @@ Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoAct
 Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
 
 
-    //Rating
-    Route::post('/ratings', [RatingController::class, 'store']);
-    Route::put('/ratings/{id}', [RatingController::class, 'update']);
-    Route::get('/ratings', [RatingController::class, 'index']);
+//Rating
+Route::post('/ratings', [RatingController::class, 'store']);
+Route::put('/ratings/{id}', [RatingController::class, 'update']);
+Route::get('/ratings', [RatingController::class, 'index']);

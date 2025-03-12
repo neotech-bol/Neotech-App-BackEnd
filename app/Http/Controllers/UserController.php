@@ -39,10 +39,11 @@ class UserController extends Controller
             'nit' => 'required|string|unique:users',
             'direccion' => 'required|string',
             'telefono' => 'required|string|max:20',
-            'edad' => 'required|integer',
+            'fecha_de_nacimiento' => 'required|date',
             'genero' => 'required|in:M,F,Otro',
             'email' => 'required|string|email|max:100|unique:users',
             'role' => 'required|string|exists:roles,name', // Validar que el rol exista
+            'pais' => 'required|string'
         ]);
         $user = new User;
         $user->nombre = $request->nombre;
@@ -51,9 +52,10 @@ class UserController extends Controller
         $user->nit = $request->nit;
         $user->direccion = $request->direccion;
         $user->telefono = $request->telefono;
-        $user->edad = $request->edad;
+        $user->fecha_de_nacimiento = $request->fecha_de_nacimiento;
         $user->genero = $request->genero;
         $user->email = $request->email;
+        $user->pais = $request->pais;
         $user->password = Hash::make($request->ci);
         $user->save();
         $user->assignRole($request->role); // Asignar el rol al usuario
@@ -261,48 +263,48 @@ class UserController extends Controller
         }
     }
     public function updateBasicInfo(Request $request)
-{
-    // Obtener el usuario autenticado
-    $user = auth()->user();
+    {
+        // Obtener el usuario autenticado
+        $user = auth()->user();
 
-    // Verificar si el usuario está autenticado
-    if (!$user) {
-        return response()->json([
-            "mensaje" => "No estás autenticado para realizar esta acción."
-        ], 401);
-    }
+        // Verificar si el usuario está autenticado
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "No estás autenticado para realizar esta acción."
+            ], 401);
+        }
 
-    // Validar la solicitud
-    $request->validate([
-        'nombre' => 'sometimes|required|string|max:50',
-        'apellido' => 'sometimes|required|string|max:50',
-        'direccion' => 'sometimes|required|string',
-        'telefono' => 'sometimes|required|string|max:20',
-        'email' => 'sometimes|required|string|email|max:100|unique:users,email,' . $user->id,
-    ]);
+        // Validar la solicitud
+        $request->validate([
+            'nombre' => 'sometimes|required|string|max:50',
+            'apellido' => 'sometimes|required|string|max:50',
+            'direccion' => 'sometimes|required|string',
+            'telefono' => 'sometimes|required|string|max:20',
+            'email' => 'sometimes|required|string|email|max:100|unique:users,email,' . $user->id,
+        ]);
 
-    // Actualizar los campos del usuario
-    if ($request->has('nombre')) {
-        $user->nombre = $request->nombre;
-    }
-    if ($request->has('apellido')) {
-        $user->apellido = $request->apellido;
-    }
-    if ($request->has('direccion')) {
-        $user->direccion = $request->direccion;
-    }
-    if ($request->has('telefono')) {
-        $user->telefono = $request->telefono;
-    }
-    if ($request->has('email')) {
-        $user->email = $request->email;
-    }
+        // Actualizar los campos del usuario
+        if ($request->has('nombre')) {
+            $user->nombre = $request->nombre;
+        }
+        if ($request->has('apellido')) {
+            $user->apellido = $request->apellido;
+        }
+        if ($request->has('direccion')) {
+            $user->direccion = $request->direccion;
+        }
+        if ($request->has('telefono')) {
+            $user->telefono = $request->telefono;
+        }
+        if ($request->has('email')) {
+            $user->email = $request->email;
+        }
 
-    // Guardar los cambios
-    $user->save();
+        // Guardar los cambios
+        $user->save();
 
-    return response()->json(["mensaje" => "Información básica actualizada correctamente", "datos" => $user], 200);
-}
+        return response()->json(["mensaje" => "Información básica actualizada correctamente", "datos" => $user], 200);
+    }
 
     public function showDepartment()
     {
@@ -357,10 +359,11 @@ class UserController extends Controller
         $totalInactivos = User::where('estado', false)->count(); // Contar usuarios donde estado es false
         return response()->json(['total_usuarios_inactivos' => $totalInactivos], 200);
     }
-    public function obtenerPermisos(){
+    public function obtenerPermisos()
+    {
         $usuario = User::find(Auth::id());
         $permisos = $usuario->getPermissionsViaRoles();
         $nombresPermisos = $permisos->pluck('name')->toArray();
-        return response()->json(['mensaje'=>'Permisos cargados', 'datos'=>$nombresPermisos],200);
+        return response()->json(['mensaje' => 'Permisos cargados', 'datos' => $nombresPermisos], 200);
     }  //Obtener Permisos
 }

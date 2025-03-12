@@ -54,7 +54,7 @@ class CatalogoController extends Controller
             'nombre' => $item->nombre,
             'descripcion' => $item->descripcion,
             'orden' => $item->orden,
-            'estado' => $item->estado, // Asegúrate de que 'estado' esté definido en el modelo Catalogo
+            'estado' => false, // Asegúrate de que 'estado' esté definido en el modelo Catalogo
         ]);
 
         return response()->json(["mensaje" => "Registro guardado", "dato" => $item], 200);
