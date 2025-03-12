@@ -167,7 +167,142 @@ class ProductosController extends Controller
             "productos_similares" => $productosSimilares
         ], 200);
     }
+  /*   public function update(Request $request, $id)
+    {
+        // Validar la solicitud
+        $request->validate([
+            "nombre" => "required|string|max:255",
+            "descripcion" => "nullable|string",
+            "precio" => "required|numeric",
+            "modelos" => "nullable|array",
+            "categoria_id" => "nullable|integer",
+            "images" => "nullable|array",
+            "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
+            'caracteristicas' => "nullable|array",
+            'colors' => "nullable|array", // Asegúrate de validar los colores
+        ]);
 
+        // Iniciar una transacción
+        DB::beginTransaction();
+        try {
+            // Encontrar el producto
+            $item = Producto::findOrFail($id);
+
+            // Actualizar los campos del producto
+            $item->nombre = $request->nombre;
+            $item->descripcion = $request->descripcion;
+            $item->precio = $request->precio;
+            $item->categoria_id = $request->categoria_id;
+            $item->cantidad_minima = $request->cantidad_minima;
+            $item->cantidad_maxima = $request->cantidad_maxima;
+
+            // Actualizar la imagen principal si se proporciona una nueva
+            if ($request->file('imagen_principal')) {
+                if ($item->imagen_principal) {
+                    Storage::delete("images/imagenes_principales/" . $item->imagen_principal);
+                }
+
+                $imagen_principal = $request->file('imagen_principal');
+                $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
+                $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
+                $item->imagen_principal = $nombreImagen;
+            }
+
+            $item->save();
+
+            // Actualizar modelos del producto
+            ModeloProducto::where("producto_id", $item->id)->delete();
+            foreach ($request->modelos as $modeloData) {
+                try {
+                    $modeloData = json_decode($modeloData, true);
+
+                    if (is_array($modeloData)) {
+                        ModeloProducto::create([
+                            'nombre' => $modeloData['nombre'],
+                            'precio' => $modeloData['precio'],
+                            'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
+                            'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
+                            'producto_id' => $item->id,
+                        ]);
+                    } else {
+                        return response()->json(["mensaje" => "Error en los datos de los modelos"], 422);
+                    }
+                } catch (\Exception $e) {
+                    return response()->json(["mensaje" => "Error al crear el modelo: " . $e->getMessage()], 500);
+                }
+            }
+
+            // Manejar imágenes existentes (actualizar color y/o archivo)
+            if ($request->has('existing_images') && is_array($request->existing_images)) {
+                foreach ($request->existing_images as $imageId => $color) {
+                    $image = Image::where('id', $imageId)
+                        ->where('producto_id', $item->id)
+                        ->first();
+
+                    if ($image) {
+                        // Actualizar el color
+                        $image->color = $color;
+
+                        // Si hay un nuevo archivo para esta imagen existente
+                        if ($request->hasFile("existing_images_files.{$imageId}")) {
+                            // Eliminar la imagen anterior del almacenamiento
+                            Storage::delete("images/productos/" . $image->imagen);
+
+                            // Guardar la nueva imagen
+                            $newImageFile = $request->file("existing_images_files.{$imageId}");
+                            $newImageName = md5_file($newImageFile->getPathname()) . '.' . $newImageFile->getClientOriginalExtension();
+                            $newImageFile->move("images/productos", $newImageName);
+
+                            // Actualizar el nombre de la imagen en la base de datos
+                            $image->imagen = $newImageName;
+                        }
+
+                        $image->save();
+                    }
+                }
+            }
+
+            // Agregar nuevas imágenes
+            if ($request->hasFile('images') && is_array($request->file('images'))) {
+                foreach ($request->file('images') as $index => $imageData) {
+                    try {
+                        // Generar un nombre único para la imagen
+                        $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
+                        // Mover la imagen a la carpeta deseada
+                        $imageData->move("images/productos", $nombreImagen);
+
+                        // Obtener el color correspondiente
+                        $color = $request->input("colors.$index"); // Asegúrate de que el nombre sea correcto
+
+                        // Crear una nueva instancia de Image y guardar en la base de datos
+                        Image::create([
+                            'imagen' => $nombreImagen, // Nombre de la imagen
+                            'producto_id' => $item->id, // Asociar la imagen con el producto
+                            'color' => $color, // Color de la imagen
+                        ]);
+                    } catch (\Exception $e) {
+                        return response()->json(["mensaje" => "Error al cargar la imagen: " . $e->getMessage()], 500);
+                    }
+                }
+            }
+            // Actualizar características del producto
+            Caracteristica::where("producto_id", $item->id)->delete();
+            foreach ($request->caracteristicas ?? [] as $caracteristica) {
+                Caracteristica::create([
+                    "producto_id" => $item->id,
+                    "caracteristica" => $caracteristica
+                ]);
+            }
+
+            // Confirmar la transacción
+            DB::commit();
+            return response()->json(["mensaje" => "Producto actualizado con éxito", "producto" => $item], 200);
+        } catch (\Throwable $th) {
+            // Revertir la transacción en caso de error
+            DB::rollBack();
+            return response()->json(["mensaje" => "Error al actualizar el producto", "error" => $th->getMessage()], 500);
+        }
+    } */
     public function update(Request $request, $id)
     {
         // Validar la solicitud
@@ -200,10 +335,7 @@ class ProductosController extends Controller
             // Actualizar la imagen principal si se proporciona una nueva
             if ($request->file('imagen_principal')) {
                 if ($item->imagen_principal) {
-                    $oldImagePath = public_path("images/imagenes_principales/" . $item->imagen_principal);
-                    if (file_exists($oldImagePath)) {
-                        unlink($oldImagePath);
-                    }
+                    Storage::delete("images/imagenes_principales/" . $item->imagen_principal);
                 }
 
                 $imagen_principal = $request->file('imagen_principal');
@@ -211,7 +343,6 @@ class ProductosController extends Controller
                 $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
                 $item->imagen_principal = $nombreImagen;
             }
-
             $item->save();
 
             // Actualizar modelos del producto
