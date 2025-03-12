@@ -17,15 +17,16 @@ class UsersTableSeeder extends Seeder
         $user = User::create([
             'nombre' => 'Super Admin',
             'apellido' => 'Administrador',
-            'ci' => '4254192123',
-            'nit' => '4254192123',
+            'ci' => '123123123',
+            'nit' => '123123123',
             'direccion' => 'Calle del super Admin',
             'telefono' => '60792059',
             'email' => 'superadmin@gmail.com', // Cambia esto por el email que desees
             'departamento' => 'cochabamba',
-            'password' => bcrypt('4254192123'), // Usar el CI como contraseña
+            'password' => bcrypt('123123123'), // Usar el CI como contraseña
             'genero' => 'M',
-            "edad" => 19
+            "fecha_de_nacimiento" => '2005-05-25',
+            "pais" => "Bolivia"
         ]); 
 
         // Asignar el rol de super-admin al usuario
