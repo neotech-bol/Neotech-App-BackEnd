@@ -104,41 +104,51 @@ class CatalogoController extends Controller
     }
     public function indexActivos(Request $request)
     {
-        // Uso de caché para mejorar el rendimiento
-        $catalogos = Cache::remember('catalogos_activos', 60, function () {
-            return Catalogo::with(['categorias' => function ($query) {
+        // Eliminamos el caché como solicitaste
+        $catalogos = Catalogo::with(['categorias' => function ($query) {
                 $query->where('estado', true); // Filtrar solo categorías activas
             }, 'categorias.productos.images']) // Cargar imágenes de productos
-                ->where('estado', true)
-                ->orderBy('orden', 'desc')
-                ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
-                ->get();
-        });
-
+            ->where('estado', true)
+            ->orderBy('orden', 'desc')
+            ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
+            ->get();
+    
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogos->transform(function ($catalogo) {
-
             $catalogo->categorias->transform(function ($categoria) {
-                $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
-
+                // Verificar si existe el banner antes de asignar la ruta
+                if ($categoria->banner) {
+                    $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
+                }
+    
                 $categoria->productos->transform(function ($producto) {
-                    $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
-
+                    // CORRECCIÓN: La imagen principal está en una carpeta diferente
+                    if ($producto->imagen_principal) {
+                        $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+                    }
+    
                     // Transformar las imágenes del producto
                     $producto->images->transform(function ($image) {
-                        $image->imagen = asset("images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
+                        if ($image->imagen) {
+                            $image->imagen = asset("images/productos/" . $image->imagen);
+                        }
                         return $image;
                     });
-
+    
                     return $producto;
                 });
-
+    
                 return $categoria;
             });
-
+    
             return $catalogo;
         });
-
+    
+        // Registrar en el log las URLs generadas para depuración
+        \Log::info('URLs de imágenes principales:', [
+            'ejemplo' => $catalogos->first()->categorias->first()->productos->first()->imagen_principal ?? 'No hay productos'
+        ]);
+    
         return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
     }
     /**
