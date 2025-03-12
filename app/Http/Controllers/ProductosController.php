@@ -180,7 +180,7 @@ class ProductosController extends Controller
             "images" => "nullable|array",
             "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
             'caracteristicas' => "nullable|array",
-            'colors' => "nullable|array", // Asegúrate de validar los colores
+            'colors' => "nullable|array",
         ]);
 
         // Iniciar una transacción
@@ -200,7 +200,10 @@ class ProductosController extends Controller
             // Actualizar la imagen principal si se proporciona una nueva
             if ($request->file('imagen_principal')) {
                 if ($item->imagen_principal) {
-                    Storage::delete("images/imagenes_principales/" . $item->imagen_principal);
+                    $oldImagePath = public_path("images/imagenes_principales/" . $item->imagen_principal);
+                    if (file_exists($oldImagePath)) {
+                        unlink($oldImagePath);
+                    }
                 }
 
                 $imagen_principal = $request->file('imagen_principal');
@@ -213,9 +216,13 @@ class ProductosController extends Controller
 
             // Actualizar modelos del producto
             ModeloProducto::where("producto_id", $item->id)->delete();
+            
             foreach ($request->modelos as $modeloData) {
                 try {
-                    $modeloData = json_decode($modeloData, true);
+                    // Verificar si modeloData es un string (JSON) o ya es un array
+                    if (is_string($modeloData)) {
+                        $modeloData = json_decode($modeloData, true);
+                    }
 
                     if (is_array($modeloData)) {
                         ModeloProducto::create([
@@ -247,7 +254,10 @@ class ProductosController extends Controller
                         // Si hay un nuevo archivo para esta imagen existente
                         if ($request->hasFile("existing_images_files.{$imageId}")) {
                             // Eliminar la imagen anterior del almacenamiento
-                            Storage::delete("images/productos/" . $image->imagen);
+                            $oldImagePath = public_path("images/productos/" . $image->imagen);
+                            if (file_exists($oldImagePath)) {
+                                unlink($oldImagePath);
+                            }
 
                             // Guardar la nueva imagen
                             $newImageFile = $request->file("existing_images_files.{$imageId}");
@@ -273,19 +283,20 @@ class ProductosController extends Controller
                         $imageData->move("images/productos", $nombreImagen);
 
                         // Obtener el color correspondiente
-                        $color = $request->input("colors.$index"); // Asegúrate de que el nombre sea correcto
+                        $color = $request->input("colors.$index");
 
                         // Crear una nueva instancia de Image y guardar en la base de datos
                         Image::create([
-                            'imagen' => $nombreImagen, // Nombre de la imagen
-                            'producto_id' => $item->id, // Asociar la imagen con el producto
-                            'color' => $color, // Color de la imagen
+                            'imagen' => $nombreImagen,
+                            'producto_id' => $item->id,
+                            'color' => $color,
                         ]);
                     } catch (\Exception $e) {
                         return response()->json(["mensaje" => "Error al cargar la imagen: " . $e->getMessage()], 500);
                     }
                 }
             }
+            
             // Actualizar características del producto
             Caracteristica::where("producto_id", $item->id)->delete();
             foreach ($request->caracteristicas ?? [] as $caracteristica) {
