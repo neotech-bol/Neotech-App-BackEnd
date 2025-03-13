@@ -19,94 +19,94 @@ class ProductosController extends Controller
         return response()->json(["mensaje" => "Productos cargados correctamente", "datos" => $products], 200);
     }
     public function store(Request $request)
-{
-    // Validación (mantén esta parte igual)
-    $request->validate([
-        "nombre" => "required|string|max:255",
-        "descripcion" => "nullable|string",
-        "precio" => "required|numeric",
-        "modelos" => "required|array",
-        "cantidad_minima" => "required|integer|min:1",
-        "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
-        "images" => "required|array",
-        "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
-        'caracteristicas' => "required|array",
-    ]);
+    {
+        // Validación (mantén esta parte igual)
+        $request->validate([
+            "nombre" => "required|string|max:255",
+            "descripcion" => "nullable|string",
+            "precio" => "required|numeric",
+            "modelos" => "required|array",
+            "cantidad_minima" => "required|integer|min:1",
+            "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
+            "images" => "required|array",
+            "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
+            'caracteristicas' => "required|array",
+        ]);
 
-    DB::beginTransaction();
-    try {
-        // Crear el producto (mantén esta parte igual)
-        $item = new Producto();
-        $item->nombre = $request->nombre;
-        $item->descripcion = $request->descripcion;
-        $item->precio = $request->precio;
-        $item->categoria_id = $request->categoria_id;
-        $item->user_id = auth()->id();
-        $item->cantidad_minima = $request->cantidad_minima;
-        $item->cantidad_maxima = $request->cantidad_maxima;
-        $item->cantidad = 0;
+        DB::beginTransaction();
+        try {
+            // Crear el producto (mantén esta parte igual)
+            $item = new Producto();
+            $item->nombre = $request->nombre;
+            $item->descripcion = $request->descripcion;
+            $item->precio = $request->precio;
+            $item->categoria_id = $request->categoria_id;
+            $item->user_id = auth()->id();
+            $item->cantidad_minima = $request->cantidad_minima;
+            $item->cantidad_maxima = $request->cantidad_maxima;
+            $item->cantidad = 0;
 
-        if ($request->file('imagen_principal')) {
-            $imagen_principal = $request->file('imagen_principal');
-            $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
-            $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
-            $item->imagen_principal = $nombreImagen;
-        }
-        $item->save();
-
-        // Agregar modelos al producto (parte modificada)
-        foreach ($request->modelos as $modeloData) {
-            if (is_string($modeloData)) {
-                $modeloData = json_decode($modeloData, true);
+            if ($request->file('imagen_principal')) {
+                $imagen_principal = $request->file('imagen_principal');
+                $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
+                $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
+                $item->imagen_principal = $nombreImagen;
             }
+            $item->save();
 
-            if (!is_array($modeloData)) {
-                throw new \Exception("Datos de modelo inválidos");
-            }
+            // Agregar modelos al producto (parte modificada)
+            foreach ($request->modelos as $modeloData) {
+                if (is_string($modeloData)) {
+                    $modeloData = json_decode($modeloData, true);
+                }
 
-            ModeloProducto::create([
-                'nombre' => $modeloData['nombre'],
-                'precio' => $modeloData['precio'],
-                'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
-                'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
-                'producto_id' => $item->id,
-            ]);
-        }
+                if (!is_array($modeloData)) {
+                    throw new \Exception("Datos de modelo inválidos");
+                }
 
-        // Agregar imágenes al producto (mantén esta parte igual)
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $index => $imageData) {
-                $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
-                $imageData->move("images/productos", $nombreImagen);
-
-                $color = $request->input("colors.$index");
-
-                Image::create([
-                    'imagen' => $nombreImagen,
+                ModeloProducto::create([
+                    'nombre' => $modeloData['nombre'],
+                    'precio' => $modeloData['precio'],
+                    'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
+                    'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
                     'producto_id' => $item->id,
-                    'color' => $color,
                 ]);
             }
-        }
 
-        // Agregar características (mantén esta parte igual)
-        $caracteristicas = $request->caracteristicas ?? [];
-        foreach ($caracteristicas as $caracteristica) {
-            if (!empty($caracteristica)) {
-                Caracteristica::create([
-                    "producto_id" => $item->id,
-                    "caracteristica" => $caracteristica
-                ]);
+            // Agregar imágenes al producto (mantén esta parte igual)
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $index => $imageData) {
+                    $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
+                    $imageData->move("images/productos", $nombreImagen);
+
+                    $color = $request->input("colors.$index");
+
+                    Image::create([
+                        'imagen' => $nombreImagen,
+                        'producto_id' => $item->id,
+                        'color' => $color,
+                    ]);
+                }
             }
-        }
 
-        DB::commit();
-        return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
-    } catch (\Throwable $th) {
-        DB::rollBack();
-        return response()->json(["mensaje" => "Error al crear el producto", "error" => $th->getMessage()], 500);
+            // Agregar características (mantén esta parte igual)
+            $caracteristicas = $request->caracteristicas ?? [];
+            foreach ($caracteristicas as $caracteristica) {
+                if (!empty($caracteristica)) {
+                    Caracteristica::create([
+                        "producto_id" => $item->id,
+                        "caracteristica" => $caracteristica
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json(["mensaje" => "Error al crear el producto", "error" => $th->getMessage()], 500);
+        }
     }
-}
     public function show(string $id)
     {
         $item = Producto::with('images', 'categoria', 'user', 'caracteristicas', 'modelos')->find($id);
@@ -167,7 +167,7 @@ class ProductosController extends Controller
             "productos_similares" => $productosSimilares
         ], 200);
     }
-  /*   public function update(Request $request, $id)
+    /*   public function update(Request $request, $id)
     {
         // Validar la solicitud
         $request->validate([
@@ -347,7 +347,7 @@ class ProductosController extends Controller
 
             // Actualizar modelos del producto
             ModeloProducto::where("producto_id", $item->id)->delete();
-            
+
             foreach ($request->modelos as $modeloData) {
                 try {
                     // Verificar si modeloData es un string (JSON) o ya es un array
@@ -371,16 +371,20 @@ class ProductosController extends Controller
                 }
             }
 
+            // Modificación para el método update en ProductosController.php
+
             // Manejar imágenes existentes (actualizar color y/o archivo)
-            if ($request->has('existing_images') && is_array($request->existing_images)) {
-                foreach ($request->existing_images as $imageId => $color) {
+            if ($request->has('existing_images')) {
+                foreach ($request->existing_images as $imageId => $value) {
                     $image = Image::where('id', $imageId)
                         ->where('producto_id', $item->id)
                         ->first();
 
                     if ($image) {
-                        // Actualizar el color
-                        $image->color = $color;
+                        // Actualizar el color si está presente
+                        if (isset($request->existing_colors[$imageId])) {
+                            $image->color = $request->existing_colors[$imageId];
+                        }
 
                         // Si hay un nuevo archivo para esta imagen existente
                         if ($request->hasFile("existing_images_files.{$imageId}")) {
@@ -427,7 +431,7 @@ class ProductosController extends Controller
                     }
                 }
             }
-            
+
             // Actualizar características del producto
             Caracteristica::where("producto_id", $item->id)->delete();
             foreach ($request->caracteristicas ?? [] as $caracteristica) {
