@@ -109,7 +109,7 @@ class CatalogoHistorialController extends Controller
                         if (!file_exists($imagenPrincipalPath) || empty($producto->imagen_principal)) {
                             $producto->imagen_principal = asset("images/placeholder.jpg");
                         } else {
-                            $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal);
+                            $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
                         }
     
                         // Verificar cada imagen adicional
