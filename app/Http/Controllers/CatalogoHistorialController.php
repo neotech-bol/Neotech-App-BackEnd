@@ -75,33 +75,54 @@ class CatalogoHistorialController extends Controller
         return response()->json(["mensaje"=> "Estado modificado", "dato" => $item], 200);
     }
     public function indexActivos(Request $request) {
-         // 10 minutos (600 segundos)
-        $historiales = Cache::remember('historiales_activos', 600, function () {
-            return CatalogoHistoriales::with([
-                    'catalogo.categorias' => function ($query) {
-                        $query->where('estado', true);
-                    },
-                    'catalogo.categorias.productos.images',
-                    'catalogo.categorias.productos.caracteristicas',
-                    'catalogo.categorias.productos.modelos'
-                ])
-                ->where('estado', true)
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($historial) {
-                    $historial->catalogo->banner = asset("images/catalogos/banners/" . $historial->catalogo->banner);
-                    $historial->catalogo->categorias->each(function ($categoria) {
-                        $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
-                        $categoria->productos->each(function ($producto) {
+        // Se eliminó el caché como solicitaste
+        $historiales = CatalogoHistoriales::with([
+                'catalogo.categorias' => function ($query) {
+                    $query->where('estado', true);
+                },
+                'catalogo.categorias.productos.images',
+                'catalogo.categorias.productos.caracteristicas',
+                'catalogo.categorias.productos.modelos'
+            ])
+            ->where('estado', true)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($historial) {
+                // Verificar si el banner existe antes de asignar la ruta
+                $bannerPath = public_path("images/catalogos/banners/" . $historial->catalogo->banner);
+                $historial->catalogo->banner = file_exists($bannerPath) 
+                    ? asset("images/catalogos/banners/" . $historial->catalogo->banner)
+                    : asset("images/placeholder.jpg"); // Imagen de respaldo
+    
+                $historial->catalogo->categorias->each(function ($categoria) {
+                    // Verificar si el banner de categoría existe
+                    $categoriaBannerPath = public_path("images/categorias/banners/" . $categoria->banner);
+                    $categoria->banner = file_exists($categoriaBannerPath)
+                        ? asset("images/categorias/banners/" . $categoria->banner)
+                        : asset("images/placeholder.jpg"); // Imagen de respaldo
+    
+                    $categoria->productos->each(function ($producto) {
+                        // Verificar si la imagen principal existe
+                        $imagenPrincipalPath = public_path("images/productos/" . $producto->imagen_principal);
+                        
+                        // Si la imagen no existe o la ruta está vacía, usar imagen de respaldo
+                        if (!file_exists($imagenPrincipalPath) || empty($producto->imagen_principal)) {
+                            $producto->imagen_principal = asset("images/placeholder.jpg");
+                        } else {
                             $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal);
-                            $producto->images->each(function ($image) {
-                                $image->imagen = asset("images/productos/" . $image->imagen);
-                            });
+                        }
+    
+                        // Verificar cada imagen adicional
+                        $producto->images->each(function ($image) {
+                            $imagePath = public_path("images/productos/" . $image->imagen);
+                            $image->imagen = file_exists($imagePath)
+                                ? asset("images/productos/" . $image->imagen)
+                                : asset("images/placeholder.jpg"); // Imagen de respaldo
                         });
                     });
-                    return $historial;
                 });
-        });
+                return $historial;
+            });
     
         return response()->json(['mensaje' => 'Historiales activos', 'datos' => $historiales], 200);
     }
