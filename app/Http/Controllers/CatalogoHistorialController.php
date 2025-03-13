@@ -89,38 +89,59 @@ class CatalogoHistorialController extends Controller
             ->get()
             ->map(function ($historial) {
                 // Verificar si el banner existe antes de asignar la ruta
-                $bannerPath = public_path("images/catalogos/banners/" . $historial->catalogo->banner);
-                $historial->catalogo->banner = file_exists($bannerPath) 
-                    ? asset("images/catalogos/banners/" . $historial->catalogo->banner)
-                    : asset("images/placeholder.jpg"); // Imagen de respaldo
+                if ($historial->catalogo->banner) {
+                    $historial->catalogo->banner = asset("images/catalogos/banners/" . $historial->catalogo->banner);
+                } else {
+                    $historial->catalogo->banner = asset("images/placeholder.jpg");
+                }
     
                 $historial->catalogo->categorias->each(function ($categoria) {
                     // Verificar si el banner de categoría existe
-                    $categoriaBannerPath = public_path("images/categorias/banners/" . $categoria->banner);
-                    $categoria->banner = file_exists($categoriaBannerPath)
-                        ? asset("images/categorias/banners/" . $categoria->banner)
-                        : asset("images/placeholder.jpg"); // Imagen de respaldo
+                    if ($categoria->banner) {
+                        $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
+                    } else {
+                        $categoria->banner = asset("images/placeholder.jpg");
+                    }
     
                     $categoria->productos->each(function ($producto) {
-                        // Verificar si la imagen principal existe
-                        $imagenPrincipalPath = public_path("images/productos/" . $producto->imagen_principal);
-                        
-                        // Si la imagen no existe o la ruta está vacía, usar imagen de respaldo
-                        if (!file_exists($imagenPrincipalPath) || empty($producto->imagen_principal)) {
-                            $producto->imagen_principal = asset("images/placeholder.jpg");
+                        // CORRECCIÓN: Verificar y asignar la imagen principal desde la carpeta correcta
+                        if ($producto->imagen_principal) {
+                            // Verificar si la imagen principal existe en la carpeta correcta
+                            $imagenPrincipalPath = public_path("images/imagenes_principales/" . $producto->imagen_principal);
+                            
+                            if (file_exists($imagenPrincipalPath)) {
+                                $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+                            } else {
+                                $producto->imagen_principal = asset("images/placeholder.jpg");
+                            }
                         } else {
-                            $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+                            $producto->imagen_principal = asset("images/placeholder.jpg");
                         }
     
                         // Verificar cada imagen adicional
                         $producto->images->each(function ($image) {
-                            $imagePath = public_path("images/productos/" . $image->imagen);
-                            $image->imagen = file_exists($imagePath)
-                                ? asset("images/productos/" . $image->imagen)
-                                : asset("images/placeholder.jpg"); // Imagen de respaldo
+                            if ($image->imagen) {
+                                $imagePath = public_path("images/productos/" . $image->imagen);
+                                if (file_exists($imagePath)) {
+                                    $image->imagen = asset("images/productos/" . $image->imagen);
+                                } else {
+                                    $image->imagen = asset("images/placeholder.jpg");
+                                }
+                            } else {
+                                $image->imagen = asset("images/placeholder.jpg");
+                            }
                         });
                     });
                 });
+                
+                // Registrar en el log las URLs generadas para depuración
+                if ($historial->catalogo->categorias->isNotEmpty() && 
+                    $historial->catalogo->categorias->first()->productos->isNotEmpty()) {
+                    \Log::info('URLs de imágenes principales en historiales:', [
+                        'ejemplo' => $historial->catalogo->categorias->first()->productos->first()->imagen_principal ?? 'No hay productos'
+                    ]);
+                }
+                
                 return $historial;
             });
     
