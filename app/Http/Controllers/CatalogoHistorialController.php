@@ -52,7 +52,7 @@ class CatalogoHistorialController extends Controller
              $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
  
              $categoria->productos->transform(function ($producto) {
-                 $producto->imagen_principal = asset("images/productos/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
+                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
  
                  // Transformar las imágenes del producto
                  $producto->images->transform(function ($image) {
