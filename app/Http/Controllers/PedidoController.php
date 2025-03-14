@@ -14,10 +14,65 @@ use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $pedidos = Pedido::with('user', 'productos', 'cupon')->get();
-        return response()->json(["message" => "Pedidos cargados", "datos" => $pedidos]);
+        // Start with a base query
+        $query = Pedido::with('user', 'productos', 'cupon');
+        
+        // Filter by search term if provided
+        if ($request->has('search') && $request->search != '') {
+            $searchTerm = $request->search;
+            $query->whereHas('user', function($q) use ($searchTerm) {
+                $q->where('nombre', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('apellido', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+            })->orWhere('id', 'LIKE', "%{$searchTerm}%");
+        }
+        
+        // Filter by status if provided
+        if ($request->has('status') && $request->status != 'all') {
+            $isPending = $request->status === 'pending';
+            $query->where('estado', !$isPending);
+        }
+        
+        // Sort results if sort parameters are provided
+        if ($request->has('sort_field') && $request->has('sort_direction')) {
+            $sortField = $request->sort_field;
+            $sortDirection = $request->sort_direction;
+            
+            // Handle different sort fields
+            switch ($sortField) {
+                case 'id':
+                    $query->orderBy('id', $sortDirection);
+                    break;
+                case 'amount':
+                    $query->orderBy('total_amount', $sortDirection);
+                    break;
+                case 'created_at':
+                default:
+                    $query->orderBy('created_at', $sortDirection);
+                    break;
+            }
+        } else {
+            // Default sorting by most recent
+            $query->orderBy('created_at', 'desc');
+        }
+        
+        // Paginate the results (10 items per page)
+        $pedidos = $query->paginate(10);
+        
+        return response()->json([
+            "message" => "Pedidos cargados", 
+            "datos" => $pedidos->items(),
+            "pagination" => [
+                "total" => $pedidos->total(),
+                "current_page" => $pedidos->currentPage(),
+                "per_page" => $pedidos->perPage(),
+                "last_page" => $pedidos->lastPage(),
+                "from" => $pedidos->firstItem() ?? 0,
+                "to" => $pedidos->lastItem() ?? 0
+            ]
+        ]);
     }
 
     public function show($id)
