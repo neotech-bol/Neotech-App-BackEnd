@@ -25,7 +25,7 @@ class ProductosController extends Controller
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "modelos" => "nullable|array",
+            "modelos" => "required|array",
             "cantidad_minima" => "required|integer|min:1",
             "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
             "images" => "required|array",
@@ -142,7 +142,7 @@ class ProductosController extends Controller
         $productosSimilares = Producto::with("images", "categoria", "caracteristicas")
             ->where('categoria_id', $item->categoria_id)
             ->where('id', '!=', $item->id) // Excluir el producto actual
-            ->take(2) // Limitar a 2 productos
+            ->take(5) // Limitar a 2 productos
             ->get();
 
         // Modificar las imágenes de los productos similares para incluir la URL completa
