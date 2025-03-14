@@ -25,7 +25,7 @@ class ProductosController extends Controller
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "modelos" => "required|array",
+            "modelos" => "nullable|array",
             "cantidad_minima" => "required|integer|min:1",
             "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
             "images" => "required|array",
