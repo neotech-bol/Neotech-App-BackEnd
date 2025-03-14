@@ -13,10 +13,40 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Producto::with('images', 'categoria', 'user:id,nombre,apellido', 'caracteristicas', 'modelos')->get();
-        return response()->json(["mensaje" => "Productos cargados correctamente", "datos" => $products], 200);
+        // Start with a base query
+        $query = Producto::with('images', 'categoria', 'user:id,nombre,apellido', 'caracteristicas', 'modelos');
+        
+        // Filter by category if provided
+        if ($request->has('categoria_id') && $request->categoria_id != '') {
+            $query->where('categoria_id', $request->categoria_id);
+        }
+        
+        // Search by product name if provided
+        if ($request->has('search') && $request->search != '') {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nombre', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('descripcion', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+        
+        // Paginate the results (10 items per page)
+        $products = $query->paginate(10);
+        
+        return response()->json([
+            "mensaje" => "Productos cargados correctamente", 
+            "datos" => $products->items(),
+            "pagination" => [
+                "total" => $products->total(),
+                "current_page" => $products->currentPage(),
+                "per_page" => $products->perPage(),
+                "last_page" => $products->lastPage(),
+                "from" => $products->firstItem() ?? 0,
+                "to" => $products->lastItem() ?? 0
+            ]
+        ], 200);
     }
     public function store(Request $request)
     {
