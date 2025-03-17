@@ -72,17 +72,17 @@ class RatingController extends Controller
         // Agregar la información adicional a cada rating
         foreach ($ratings as $rating) {
             $productoId = $rating->producto_id;
-            
+        
             // Total de usuarios que calificaron
             $rating->total_users = $ratingsCount->get($productoId)->total ?? 0;
-            
+        
             // Promedio de calificación
             $avgRating = $ratingsAvg->get($productoId)->average ?? 0;
             $rating->average_rating = round($avgRating, 1);
-            
+        
             // Porcentaje de calificación (basado en 5 estrellas como máximo)
             $rating->rating_percentage = round(($avgRating / 5) * 100);
-            
+        
             // Distribución de calificaciones
             if (isset($ratingDistribution[$productoId])) {
                 $distribution = [
@@ -92,14 +92,14 @@ class RatingController extends Controller
                     '4' => 0,
                     '5' => 0
                 ];
-                
+        
                 foreach ($ratingDistribution[$productoId] as $item) {
                     $distribution[$item->rating] = $item->count;
                 }
-                
+        
                 $rating->rating_distribution = $distribution;
-                
-                // Calcular porcentajes para cada nivel de calificación
+        
+                // Calculate percentages for each rating level
                 $rating->rating_percentages = [];
                 foreach ($distribution as $stars => $count) {
                     $percentage = $rating->total_users > 0 ? round(($count / $rating->total_users) * 100) : 0;
