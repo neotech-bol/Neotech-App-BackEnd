@@ -177,7 +177,13 @@ Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoAct
 Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
 
 
-//Rating
+// Rutas existentes
 Route::post('/ratings', [RatingController::class, 'store']);
 Route::put('/ratings/{id}', [RatingController::class, 'update']);
 Route::get('/ratings', [RatingController::class, 'index']);
+
+// Nueva ruta para estadísticas de calificación por producto
+Route::get('/products/{productoId}/ratings/stats', [RatingController::class, 'getProductRatingStats']);
+
+// Ruta alternativa si prefieres mantener todo bajo el prefijo 'ratings'
+Route::get('/ratings/product/{productoId}/stats', [RatingController::class, 'getProductRatingStats']);
