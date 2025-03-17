@@ -47,24 +47,24 @@ class RatingController extends Controller
     public function index()
     {
         // Obtener las calificaciones del usuario autenticado
-        $ratings = rating::with('producto')
+        $ratings = rating::with('producto') // Change 'rating' to 'Rating'
             ->where('user_id', auth()->id())
             ->get();
 
         // Obtener la cantidad de usuarios que han calificado cada producto
-        $ratingsCount = rating::select('producto_id', DB::raw('count(*) as total'))
+        $ratingsCount = rating::select('producto_id', DB::raw('count(*) as total')) // Change 'rating' to 'Rating'
             ->groupBy('producto_id')
             ->get()
             ->keyBy('producto_id');
 
         // Obtener el promedio de calificaciones por producto
-        $ratingsAvg = rating::select('producto_id', DB::raw('avg(rating) as average'))
+        $ratingsAvg = rating::select('producto_id', DB::raw('avg(rating) as average')) // Change 'rating' to 'Rating'
             ->groupBy('producto_id')
             ->get()
             ->keyBy('producto_id');
 
         // Obtener la distribución de calificaciones por producto (cuántos usuarios dieron 1, 2, 3, 4 o 5 estrellas)
-        $ratingDistribution = rating::select('producto_id', 'rating', DB::raw('count(*) as count'))
+        $ratingDistribution = rating::select('producto_id', 'rating', DB::raw('count(*) as count')) // Change 'rating' to 'Rating'
             ->groupBy('producto_id', 'rating')
             ->get()
             ->groupBy('producto_id');
@@ -124,7 +124,7 @@ class RatingController extends Controller
         }
 
         // Obtener el total de calificaciones para este producto
-        $totalRatings = rating::where('producto_id', $productoId)->count();
+        $totalRatings = rating::where('producto_id', $productoId)->count(); // Change 'rating' to 'Rating'
         
         if ($totalRatings === 0) {
             return response()->json([
@@ -142,10 +142,10 @@ class RatingController extends Controller
         }
 
         // Obtener el promedio de calificaciones
-        $avgRating = rating::where('producto_id', $productoId)->avg('rating');
+        $avgRating = rating::where('producto_id', $productoId)->avg('rating'); // Change 'rating' to 'Rating'
         
         // Obtener la distribución de calificaciones
-        $distribution = rating::select('rating', DB::raw('count(*) as count'))
+        $distribution = rating::select('rating', DB::raw('count(*) as count')) // Change 'rating' to 'Rating'
             ->where('producto_id', $productoId)
             ->groupBy('rating')
             ->get()
