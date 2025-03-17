@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class rating extends Model
 {
@@ -11,7 +12,6 @@ class rating extends Model
 
     protected $fillable = ['user_id', 'producto_id', 'rating', 'comment'];
 
-    // If you want to append the rating_percentages dynamically
     protected $appends = ['rating_percentages'];
 
     public function user()
@@ -24,10 +24,28 @@ class rating extends Model
         return $this->belongsTo(Producto::class);
     }
 
-    // Accessor for rating_percentages
     public function getRatingPercentagesAttribute()
     {
-        // You can return a default value or calculate it based on your logic
-        return []; // Return an empty array or your calculated percentages
+        // Fetch distribution for this specific producto_id
+        $distribution = self::select('rating', DB::raw('count(*) as count'))
+            ->where('producto_id', $this->producto_id)
+            ->groupBy('rating')
+            ->pluck('count', 'rating')
+            ->toArray();
+
+        $total = array_sum($distribution);
+        $percentages = [
+            '1' => 0,
+            '2' => 0,
+            '3' => 0,
+            '4' => 0,
+            '5' => 0
+        ];
+
+        foreach ($distribution as $rating => $count) {
+            $percentages[$rating] = $total > 0 ? round(($count / $total) * 100) : 0;
+        }
+
+        return $percentages;
     }
 }

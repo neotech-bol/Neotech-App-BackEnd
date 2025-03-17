@@ -46,44 +46,35 @@ class RatingController extends Controller
 
     public function index()
     {
-        // Obtener las calificaciones del usuario autenticado
-        $ratings = rating::with('producto') // Change 'rating' to 'Rating'
+        $ratings = rating::with('producto')
             ->where('user_id', auth()->id())
             ->get();
-
-        // Obtener la cantidad de usuarios que han calificado cada producto
-        $ratingsCount = rating::select('producto_id', DB::raw('count(*) as total')) // Change 'rating' to 'Rating'
+    
+        $ratingsCount = rating::select('producto_id', DB::raw('count(*) as total'))
             ->groupBy('producto_id')
             ->get()
             ->keyBy('producto_id');
-
-        // Obtener el promedio de calificaciones por producto
-        $ratingsAvg = rating::select('producto_id', DB::raw('avg(rating) as average')) // Change 'rating' to 'Rating'
+    
+        $ratingsAvg = rating::select('producto_id', DB::raw('avg(rating) as average'))
             ->groupBy('producto_id')
             ->get()
             ->keyBy('producto_id');
-
-        // Obtener la distribución de calificaciones por producto (cuántos usuarios dieron 1, 2, 3, 4 o 5 estrellas)
-        $ratingDistribution = rating::select('producto_id', 'rating', DB::raw('count(*) as count')) // Change 'rating' to 'Rating'
+    
+        $ratingDistribution = rating::select('producto_id', 'rating', DB::raw('count(*) as count'))
             ->groupBy('producto_id', 'rating')
             ->get()
             ->groupBy('producto_id');
-
-        // Agregar la información adicional a cada rating
+    
         foreach ($ratings as $rating) {
             $productoId = $rating->producto_id;
         
-            // Total de usuarios que calificaron
             $rating->total_users = $ratingsCount->get($productoId)->total ?? 0;
         
-            // Promedio de calificación
             $avgRating = $ratingsAvg->get($productoId)->average ?? 0;
             $rating->average_rating = round($avgRating, 1);
         
-            // Porcentaje de calificación (basado en 5 estrellas como máximo)
             $rating->rating_percentage = round(($avgRating / 5) * 100);
         
-            // Distribución de calificaciones
             if (isset($ratingDistribution[$productoId])) {
                 $distribution = [
                     '1' => 0,
@@ -98,19 +89,11 @@ class RatingController extends Controller
                 }
         
                 $rating->rating_distribution = $distribution;
-        
-                // Calculate percentages for each rating level
-                $rating->rating_percentages = [];
-                foreach ($distribution as $stars => $count) {
-                    $percentage = $rating->total_users > 0 ? round(($count / $rating->total_users) * 100) : 0;
-                    $rating->rating_percentages[$stars] = $percentage;
-                }
             }
         }
-
+    
         return response()->json($ratings);
     }
-
     /**
      * Obtener estadísticas de calificación para un producto específico
      */
