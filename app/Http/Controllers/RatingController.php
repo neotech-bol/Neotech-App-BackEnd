@@ -163,4 +163,128 @@ class RatingController extends Controller
             'rating_percentages' => $percentages
         ]);
     }
+
+    /**
+     * Obtener el total de usuarios que han calificado productos
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getTotalRatingUsers()
+    {
+        // Obtener el número total de usuarios únicos que han calificado productos
+        $totalUsers = rating::select('user_id')
+            ->distinct()
+            ->count();
+        
+        // Obtener el total de calificaciones
+        $totalRatings = rating::count();
+        
+        // Obtener el promedio general de todas las calificaciones
+        $avgRating = rating::avg('rating');
+        
+        // Calcular el porcentaje general basado en el promedio
+        $overallPercentage = round(($avgRating / 5) * 100);
+        
+        // Obtener la distribución general de calificaciones
+        $distribution = rating::select('rating', DB::raw('count(*) as count'))
+            ->groupBy('rating')
+            ->get()
+            ->pluck('count', 'rating')
+            ->toArray();
+        
+        // Asegurar que todas las calificaciones estén representadas
+        $fullDistribution = [
+            '1' => 0,
+            '2' => 0,
+            '3' => 0,
+            '4' => 0,
+            '5' => 0
+        ];
+        
+        foreach ($distribution as $rating => $count) {
+            $fullDistribution["$rating"] = $count;
+        }
+        
+        // Calcular porcentajes para cada nivel de calificación
+        $percentages = [];
+        foreach ($fullDistribution as $stars => $count) {
+            $percentages["$stars"] = $totalRatings > 0 ? round(($count / $totalRatings) * 100) : 0;
+        }
+        
+        return response()->json([
+            'total_users' => $totalUsers,
+            'total_ratings' => $totalRatings,
+            'average_rating' => round($avgRating, 1),
+            'overall_percentage' => $overallPercentage,
+            'rating_distribution' => $fullDistribution,
+            'rating_percentages' => $percentages
+        ]);
+    }
+    
+    /**
+     * Obtener estadísticas de calificación por categoría de producto
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRatingStatsByCategory()
+    {
+        // Obtener estadísticas agrupadas por categoría
+        $categoryStats = DB::table('ratings')
+            ->join('productos', 'ratings.producto_id', '=', 'productos.id')
+            ->join('categorias', 'productos.categoria_id', '=', 'categorias.id')
+            ->select(
+                'categorias.id as categoria_id',
+                'categorias.nombre as categoria_nombre',
+                DB::raw('COUNT(DISTINCT ratings.user_id) as total_users'),
+                DB::raw('COUNT(ratings.id) as total_ratings'),
+                DB::raw('AVG(ratings.rating) as average_rating')
+            )
+            ->groupBy('categorias.id', 'categorias.nombre')
+            ->get();
+        
+        // Calcular porcentajes y añadir información adicional
+        foreach ($categoryStats as $category) {
+            $category->rating_percentage = round(($category->average_rating / 5) * 100);
+            $category->average_rating = round($category->average_rating, 1);
+            
+            // Obtener la distribución de calificaciones para esta categoría
+            $distribution = DB::table('ratings')
+                ->join('productos', 'ratings.producto_id', '=', 'productos.id')
+                ->where('productos.categoria_id', $category->categoria_id)
+                ->select('ratings.rating', DB::raw('count(*) as count'))
+                ->groupBy('ratings.rating')
+                ->get()
+                ->pluck('count', 'rating')
+                ->toArray();
+            
+            // Asegurar que todas las calificaciones estén representadas
+            $fullDistribution = [
+                '1' => 0,
+                '2' => 0,
+                '3' => 0,
+                '4' => 0,
+                '5' => 0
+            ];
+            
+            foreach ($distribution as $rating => $count) {
+                $fullDistribution["$rating"] = $count;
+            }
+            
+            $category->rating_distribution = $fullDistribution;
+            
+            // Calcular porcentajes para cada nivel de calificación
+            $percentages = [];
+            foreach ($fullDistribution as $stars => $count) {
+                $percentages["$stars"] = $category->total_ratings > 0 ? 
+                    round(($count / $category->total_ratings) * 100) : 0;
+            }
+            
+            $category->rating_percentages = $percentages;
+        }
+        
+        return response()->json([
+            'total_categories' => count($categoryStats),
+            'categories' => $categoryStats
+        ]);
+    }
 }

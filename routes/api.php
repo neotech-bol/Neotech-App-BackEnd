@@ -179,11 +179,11 @@ Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser
 
 // Rutas existentes
 Route::post('/ratings', [RatingController::class, 'store']);
-Route::put('/ratings/{id}', [RatingController::class, 'update']);
 Route::get('/ratings', [RatingController::class, 'index']);
-
-// Nueva ruta para estadísticas de calificación por producto
+Route::put('/ratings/{id}', [RatingController::class, 'update']);
 Route::get('/products/{productoId}/ratings/stats', [RatingController::class, 'getProductRatingStats']);
-
-// Ruta alternativa si prefieres mantener todo bajo el prefijo 'ratings'
 Route::get('/ratings/product/{productoId}/stats', [RatingController::class, 'getProductRatingStats']);
+
+// Nuevas rutas para las estadísticas de calificaciones
+Route::get('/ratings/stats/users', [RatingController::class, 'getTotalRatingUsers']);
+Route::get('/ratings/stats/categories', [RatingController::class, 'getRatingStatsByCategory']);
