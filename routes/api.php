@@ -177,13 +177,17 @@ Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoAct
 Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
 
 
-// Rutas existentes
-Route::post('/ratings', [RatingController::class, 'store']);
-Route::get('/ratings', [RatingController::class, 'index']);
-Route::put('/ratings/{id}', [RatingController::class, 'update']);
-Route::get('/products/{productoId}/ratings/stats', [RatingController::class, 'getProductRatingStats']);
-Route::get('/ratings/product/{productoId}/stats', [RatingController::class, 'getProductRatingStats']);
-
-// Nuevas rutas para las estadísticas de calificaciones
-Route::get('/ratings/stats/users', [RatingController::class, 'getTotalRatingUsers']);
-Route::get('/ratings/stats/categories', [RatingController::class, 'getRatingStatsByCategory']);
+    // Rutas existentes
+    Route::post('/ratings', [RatingController::class, 'store']);
+    Route::get('/ratings', [RatingController::class, 'index']);
+    Route::put('/ratings/{id}', [RatingController::class, 'update']);
+    Route::get('/products/{productoId}/ratings/stats', [RatingController::class, 'getProductRatingStats']);
+    Route::get('/ratings/product/{productoId}/stats', [RatingController::class, 'getProductRatingStats']);
+    
+    // Rutas para estadísticas generales
+    Route::get('/ratings/stats/users', [RatingController::class, 'getTotalRatingUsers']);
+    Route::get('/ratings/stats/categories', [RatingController::class, 'getRatingStatsByCategory']);
+    
+    // Nuevas rutas para estadísticas por usuario
+    Route::get('/ratings/stats/by-user', [RatingController::class, 'getRatingsByUser']);
+    Route::get('/users/{userId}/ratings/stats', [RatingController::class, 'getUserRatingStats']);
