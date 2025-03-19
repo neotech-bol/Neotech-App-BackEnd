@@ -115,31 +115,39 @@ class CatalogoController extends Controller
     
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogos->transform(function ($catalogo) {
-            $catalogo->categorias->transform(function ($categoria) {
-                // Verificar si existe el banner antes de asignar la ruta
-                if ($categoria->banner) {
-                    $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
-                }
-    
-                $categoria->productos->transform(function ($producto) {
-                    // CORRECCIÓN: La imagen principal está en una carpeta diferente
-                    if ($producto->imagen_principal) {
-                        $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+            // Verificar si hay categorías
+            if ($catalogo->categorias) {
+                $catalogo->categorias->transform(function ($categoria) {
+                    // Verificar si existe el banner antes de asignar la ruta
+                    if ($categoria->banner) {
+                        $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
                     }
     
-                    // Transformar las imágenes del producto
-                    $producto->images->transform(function ($image) {
-                        if ($image->imagen) {
-                            $image->imagen = asset("images/productos/" . $image->imagen);
-                        }
-                        return $image;
-                    });
+                    // Verificar si hay productos
+                    if ($categoria->productos) {
+                        $categoria->productos->transform(function ($producto) {
+                            // CORRECCIÓN: La imagen principal está en una carpeta diferente
+                            if ($producto->imagen_principal) {
+                                $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+                            }
     
-                    return $producto;
+                            // Transformar las imágenes del producto
+                            if ($producto->images) {
+                                $producto->images->transform(function ($image) {
+                                    if ($image->imagen) {
+                                        $image->imagen = asset("images/productos/" . $image->imagen);
+                                    }
+                                    return $image;
+                                });
+                            }
+    
+                            return $producto;
+                        });
+                    }
+    
+                    return $categoria;
                 });
-    
-                return $categoria;
-            });
+            }
     
             return $catalogo;
         });
