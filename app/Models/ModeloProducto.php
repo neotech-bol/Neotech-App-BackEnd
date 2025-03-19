@@ -16,6 +16,9 @@ class ModeloProducto extends Model
         'precio',
         'cantidad_minima',
         'cantidad_maxima',
+        'precio_preventa',
+        'cantidad_minima_preventa',
+        'cantidad_maxima_preventa',
     ];
 
     public function producto()

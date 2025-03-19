@@ -50,32 +50,38 @@ class ProductosController extends Controller
     }
     public function store(Request $request)
     {
-        // Validación (mantén esta parte igual)
+        // Validación con modelos no requeridos y precio_preventa añadido
         $request->validate([
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "modelos" => "required|array",
+            "precio_preventa" => "nullable|numeric",
             "cantidad_minima" => "required|integer|min:1",
             "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
+            "cantidad_minima_preventa" => "nullable|integer|min:1",
+            "cantidad_maxima_preventa" => "nullable|integer|min:1",
+            "modelos" => "nullable|array", // Ahora es nullable
             "images" => "required|array",
             "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
             'caracteristicas' => "required|array",
         ]);
-
+    
         DB::beginTransaction();
         try {
-            // Crear el producto (mantén esta parte igual)
+            // Crear el producto con precio_preventa
             $item = new Producto();
             $item->nombre = $request->nombre;
             $item->descripcion = $request->descripcion;
             $item->precio = $request->precio;
+            $item->precio_preventa = $request->precio_preventa;
             $item->categoria_id = $request->categoria_id;
             $item->user_id = auth()->id();
             $item->cantidad_minima = $request->cantidad_minima;
             $item->cantidad_maxima = $request->cantidad_maxima;
+            $item->cantidad_minima_preventa = $request->cantidad_minima_preventa;
+            $item->cantidad_maxima_preventa = $request->cantidad_maxima_preventa;
             $item->cantidad = 0;
-
+    
             if ($request->file('imagen_principal')) {
                 $imagen_principal = $request->file('imagen_principal');
                 $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
@@ -83,34 +89,39 @@ class ProductosController extends Controller
                 $item->imagen_principal = $nombreImagen;
             }
             $item->save();
-
-            // Agregar modelos al producto (parte modificada)
-            foreach ($request->modelos as $modeloData) {
-                if (is_string($modeloData)) {
-                    $modeloData = json_decode($modeloData, true);
+    
+            // Agregar modelos al producto (ahora opcional)
+            if ($request->has('modelos') && is_array($request->modelos)) {
+                foreach ($request->modelos as $modeloData) {
+                    if (is_string($modeloData)) {
+                        $modeloData = json_decode($modeloData, true);
+                    }
+    
+                    if (!is_array($modeloData)) {
+                        throw new \Exception("Datos de modelo inválidos");
+                    }
+    
+                    ModeloProducto::create([
+                        'nombre' => $modeloData['nombre'],
+                        'precio' => $modeloData['precio'],
+                        'precio_preventa' => $modeloData['precio_preventa'] ?? null,
+                        'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
+                        'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
+                        'cantidad_minima_preventa' => $modeloData['cantidad_minima_preventa'] ?? null,
+                        'cantidad_maxima_preventa' => $modeloData['cantidad_maxima_preventa'] ?? null,
+                        'producto_id' => $item->id,
+                    ]);
                 }
-
-                if (!is_array($modeloData)) {
-                    throw new \Exception("Datos de modelo inválidos");
-                }
-
-                ModeloProducto::create([
-                    'nombre' => $modeloData['nombre'],
-                    'precio' => $modeloData['precio'],
-                    'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
-                    'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
-                    'producto_id' => $item->id,
-                ]);
             }
-
+    
             // Agregar imágenes al producto (mantén esta parte igual)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $index => $imageData) {
                     $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
                     $imageData->move("images/productos", $nombreImagen);
-
+    
                     $color = $request->input("colors.$index");
-
+    
                     Image::create([
                         'imagen' => $nombreImagen,
                         'producto_id' => $item->id,
@@ -118,7 +129,7 @@ class ProductosController extends Controller
                     ]);
                 }
             }
-
+    
             // Agregar características (mantén esta parte igual)
             $caracteristicas = $request->caracteristicas ?? [];
             foreach ($caracteristicas as $caracteristica) {
@@ -129,7 +140,7 @@ class ProductosController extends Controller
                     ]);
                 }
             }
-
+    
             DB::commit();
             return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
         } catch (\Throwable $th) {
@@ -335,87 +346,98 @@ class ProductosController extends Controller
     } */
     public function update(Request $request, $id)
     {
-        // Validar la solicitud
+        // Validar la solicitud con modelos no requeridos y precio_preventa añadido
         $request->validate([
             "nombre" => "required|string|max:255",
             "descripcion" => "nullable|string",
             "precio" => "required|numeric",
-            "modelos" => "nullable|array",
+            "precio_preventa" => "nullable|numeric",
+            "cantidad_minima" => "required|integer|min:1",
+            "cantidad_maxima" => "required|integer|min:1|gt:cantidad_minima",
+            "cantidad_minima_preventa" => "nullable|integer|min:1",
+            "cantidad_maxima_preventa" => "nullable|integer|min:1",
+            "modelos" => "nullable|array", // Ahora es nullable
             "categoria_id" => "nullable|integer",
             "images" => "nullable|array",
             "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
             'caracteristicas' => "nullable|array",
             'colors' => "nullable|array",
         ]);
-
+    
         // Iniciar una transacción
         DB::beginTransaction();
         try {
             // Encontrar el producto
             $item = Producto::findOrFail($id);
-
+    
             // Actualizar los campos del producto
             $item->nombre = $request->nombre;
             $item->descripcion = $request->descripcion;
             $item->precio = $request->precio;
+            $item->precio_preventa = $request->precio_preventa;
             $item->categoria_id = $request->categoria_id;
             $item->cantidad_minima = $request->cantidad_minima;
             $item->cantidad_maxima = $request->cantidad_maxima;
-
+            $item->cantidad_minima_preventa = $request->cantidad_minima_preventa;
+            $item->cantidad_maxima_preventa = $request->cantidad_maxima_preventa;
+    
             // Actualizar la imagen principal si se proporciona una nueva
             if ($request->file('imagen_principal')) {
                 if ($item->imagen_principal) {
                     Storage::delete("images/imagenes_principales/" . $item->imagen_principal);
                 }
-
+    
                 $imagen_principal = $request->file('imagen_principal');
                 $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
                 $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
                 $item->imagen_principal = $nombreImagen;
             }
             $item->save();
-
-            // Actualizar modelos del producto
+    
+            // Actualizar modelos del producto (ahora opcional)
             ModeloProducto::where("producto_id", $item->id)->delete();
-
-            foreach ($request->modelos as $modeloData) {
-                try {
-                    // Verificar si modeloData es un string (JSON) o ya es un array
-                    if (is_string($modeloData)) {
-                        $modeloData = json_decode($modeloData, true);
+    
+            if ($request->has('modelos') && is_array($request->modelos)) {
+                foreach ($request->modelos as $modeloData) {
+                    try {
+                        // Verificar si modeloData es un string (JSON) o ya es un array
+                        if (is_string($modeloData)) {
+                            $modeloData = json_decode($modeloData, true);
+                        }
+    
+                        if (is_array($modeloData)) {
+                            ModeloProducto::create([
+                                'nombre' => $modeloData['nombre'],
+                                'precio' => $modeloData['precio'],
+                                'precio_preventa' => $modeloData['precio_preventa'] ?? null,
+                                'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
+                                'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
+                                'cantidad_minima_preventa' => $modeloData['cantidad_minima_preventa'] ?? null,
+                                'cantidad_maxima_preventa' => $modeloData['cantidad_maxima_preventa'] ?? null,
+                                'producto_id' => $item->id,
+                            ]);
+                        } else {
+                            return response()->json(["mensaje" => "Error en los datos de los modelos"], 422);
+                        }
+                    } catch (\Exception $e) {
+                        return response()->json(["mensaje" => "Error al crear el modelo: " . $e->getMessage()], 500);
                     }
-
-                    if (is_array($modeloData)) {
-                        ModeloProducto::create([
-                            'nombre' => $modeloData['nombre'],
-                            'precio' => $modeloData['precio'],
-                            'cantidad_minima' => $modeloData['cantidad_minima'] ?? 1,
-                            'cantidad_maxima' => $modeloData['cantidad_maxima'] ?? 100,
-                            'producto_id' => $item->id,
-                        ]);
-                    } else {
-                        return response()->json(["mensaje" => "Error en los datos de los modelos"], 422);
-                    }
-                } catch (\Exception $e) {
-                    return response()->json(["mensaje" => "Error al crear el modelo: " . $e->getMessage()], 500);
                 }
             }
-
-            // Modificación para el método update en ProductosController.php
-
+    
             // Manejar imágenes existentes (actualizar color y/o archivo)
             if ($request->has('existing_images')) {
                 foreach ($request->existing_images as $imageId => $value) {
                     $image = Image::where('id', $imageId)
                         ->where('producto_id', $item->id)
                         ->first();
-
+    
                     if ($image) {
                         // Actualizar el color si está presente
                         if (isset($request->existing_colors[$imageId])) {
                             $image->color = $request->existing_colors[$imageId];
                         }
-
+    
                         // Si hay un nuevo archivo para esta imagen existente
                         if ($request->hasFile("existing_images_files.{$imageId}")) {
                             // Eliminar la imagen anterior del almacenamiento
@@ -423,21 +445,21 @@ class ProductosController extends Controller
                             if (file_exists($oldImagePath)) {
                                 unlink($oldImagePath);
                             }
-
+    
                             // Guardar la nueva imagen
                             $newImageFile = $request->file("existing_images_files.{$imageId}");
                             $newImageName = md5_file($newImageFile->getPathname()) . '.' . $newImageFile->getClientOriginalExtension();
                             $newImageFile->move("images/productos", $newImageName);
-
+    
                             // Actualizar el nombre de la imagen en la base de datos
                             $image->imagen = $newImageName;
                         }
-
+    
                         $image->save();
                     }
                 }
             }
-
+    
             // Agregar nuevas imágenes
             if ($request->hasFile('images') && is_array($request->file('images'))) {
                 foreach ($request->file('images') as $index => $imageData) {
@@ -446,10 +468,10 @@ class ProductosController extends Controller
                         $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
                         // Mover la imagen a la carpeta deseada
                         $imageData->move("images/productos", $nombreImagen);
-
+    
                         // Obtener el color correspondiente
                         $color = $request->input("colors.$index");
-
+    
                         // Crear una nueva instancia de Image y guardar en la base de datos
                         Image::create([
                             'imagen' => $nombreImagen,
@@ -461,7 +483,7 @@ class ProductosController extends Controller
                     }
                 }
             }
-
+    
             // Actualizar características del producto
             Caracteristica::where("producto_id", $item->id)->delete();
             foreach ($request->caracteristicas ?? [] as $caracteristica) {
@@ -470,7 +492,7 @@ class ProductosController extends Controller
                     "caracteristica" => $caracteristica
                 ]);
             }
-
+    
             // Confirmar la transacción
             DB::commit();
             return response()->json(["mensaje" => "Producto actualizado con éxito", "producto" => $item], 200);

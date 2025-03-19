@@ -13,11 +13,14 @@ return new class extends Migration
     {
         Schema::create('modelo_productos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade'); // Relación con el producto
+            $table->foreignId('producto_id')->nullable()->constrained()->onDelete('cascade'); // Relación con el producto (ahora nullable)
             $table->string('nombre'); // Nombre del modelo
             $table->decimal('precio', 10, 2); // Precio del modelo
+            $table->decimal('precio_preventa', 10, 2)->nullable(); // Precio de preventa (nuevo campo)
             $table->integer('cantidad_minima')->default(1); // Cantidad mínima
             $table->integer('cantidad_maxima')->default(100); // Cantidad máxima
+            $table->integer('cantidad_minima_preventa')->nullable(); // Cantidad mínima para preventa (nuevo campo)
+            $table->integer('cantidad_maxima_preventa')->nullable(); // Cantidad máxima para preventa (nuevo campo)
             $table->timestamps();
         });
     }

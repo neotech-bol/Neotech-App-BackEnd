@@ -16,7 +16,9 @@ return new class extends Migration
             $table->foreignId('pedido_id')->constrained('pedidos')->onDelete('cascade');
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
             $table->foreignId('modelo_id')->nullable()->constrained('modelo_productos')->onDelete('cascade');
-            $table->decimal('precio', 10, 2)->nullable(); // Precio al momento de la compra
+            $table->decimal('precio', 10, 2)->nullable(); // Precio regular al momento de la compra
+            $table->decimal('precio_preventa', 10, 2)->nullable(); // Precio de preventa al momento de la compra
+            $table->boolean('es_preventa')->default(false); // Indica si la compra fue con precio de preventa
             $table->integer('cantidad')->default(1);
             $table->string('color')->nullable(); // Opcional: si también quieres guardar el color
             $table->timestamps();

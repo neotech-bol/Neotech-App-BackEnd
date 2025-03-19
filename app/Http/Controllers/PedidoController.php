@@ -91,11 +91,16 @@ class PedidoController extends Controller
                 'nombre' => $producto->nombre,
                 'descripcion' => $producto->descripcion,
                 'precio_base' => $producto->precio,
+                'precio_preventa_base' => $producto->precio_preventa,
                 'cantidad' => $pivotData->cantidad,
                 'modelo_id' => $pivotData->modelo_id,
-                'precio_compra' => $pivotData->precio, // Precio al momento de la compra
+                'precio_compra' => $pivotData->precio, // Precio regular al momento de la compra
+                'precio_preventa_compra' => $pivotData->precio_preventa, // Precio de preventa al momento de la compra
+                'es_preventa' => $pivotData->es_preventa, // Indica si se compró con precio de preventa
                 'color' => $pivotData->color,
-                'subtotal' => $pivotData->precio * $pivotData->cantidad
+                'subtotal' => $pivotData->es_preventa 
+                    ? $pivotData->precio_preventa * $pivotData->cantidad 
+                    : $pivotData->precio * $pivotData->cantidad
             ];
         });
 
@@ -113,6 +118,8 @@ class PedidoController extends Controller
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.modelo_id' => 'nullable|exists:modelo_productos,id',
             'productos.*.precio' => 'required|numeric',
+            'productos.*.precio_preventa' => 'nullable|numeric',
+            'productos.*.es_preventa' => 'nullable|boolean',
             'productos.*.color' => 'nullable|string',
             'cupon_id' => 'nullable|exists:cupones,id',
             'payment_method' => 'required|string',
@@ -145,6 +152,8 @@ class PedidoController extends Controller
                 'cantidad' => $producto['cantidad'],
                 'modelo_id' => $producto['modelo_id'] ?? null,
                 'precio' => $producto['precio'],
+                'precio_preventa' => $producto['precio_preventa'] ?? null,
+                'es_preventa' => $producto['es_preventa'] ?? false,
                 'color' => $producto['color'] ?? null
             ]);
         }
@@ -162,6 +171,9 @@ class PedidoController extends Controller
             'productos' => 'sometimes|array',
             'productos.*.id' => 'sometimes|required|exists:productos,id',
             'productos.*.cantidad' => 'sometimes|required|integer|min:1',
+            'productos.*.precio' => 'sometimes|required|numeric',
+            'productos.*.precio_preventa' => 'nullable|numeric',
+            'productos.*.es_preventa' => 'nullable|boolean',
         ]);
 
         $pedido->update($request->only('user_id', 'monto_total'));
@@ -169,7 +181,14 @@ class PedidoController extends Controller
         if ($request->has('productos')) {
             $pedido->productos()->detach();
             foreach ($request->productos as $producto) {
-                $pedido->productos()->attach($producto['id'], ['cantidad' => $producto['cantidad']]);
+                $pedido->productos()->attach($producto['id'], [
+                    'cantidad' => $producto['cantidad'],
+                    'precio' => $producto['precio'] ?? null,
+                    'precio_preventa' => $producto['precio_preventa'] ?? null,
+                    'es_preventa' => $producto['es_preventa'] ?? false,
+                    'modelo_id' => $producto['modelo_id'] ?? null,
+                    'color' => $producto['color'] ?? null
+                ]);
             }
         }
 
@@ -289,7 +308,14 @@ class PedidoController extends Controller
         $nuevoPedido->save();
 
         foreach ($pedidoOriginal->productos as $producto) {
-            $nuevoPedido->productos()->attach($producto->id, ['cantidad' => $producto->pivot->cantidad]);
+            $nuevoPedido->productos()->attach($producto->id, [
+                'cantidad' => $producto->pivot->cantidad,
+                'modelo_id' => $producto->pivot->modelo_id,
+                'precio' => $producto->pivot->precio,
+                'precio_preventa' => $producto->pivot->precio_preventa,
+                'es_preventa' => $producto->pivot->es_preventa,
+                'color' => $producto->pivot->color
+            ]);
         }
 
         return response()->json(['message' => 'Pedido repetido con éxito.', 'nuevo_pedido' => $nuevoPedido], 201);

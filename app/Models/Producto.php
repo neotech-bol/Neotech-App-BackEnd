@@ -15,7 +15,12 @@ class Producto extends Model
         'precio',
         'estado',
         'cantidad',
-        'imagen_principal'
+        'imagen_principal',
+        'precio_preventa',
+        'cantidad_minima',
+        'cantidad_maxima',
+        'cantidad_minima_preventa',
+        'cantidad_maxima_preventa',
     ];
 
     public function categoria()
