@@ -115,23 +115,18 @@ class CatalogoController extends Controller
     
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogos->transform(function ($catalogo) {
-            // Verificar si hay categorías
             if ($catalogo->categorias) {
                 $catalogo->categorias->transform(function ($categoria) {
-                    // Verificar si existe el banner antes de asignar la ruta
                     if ($categoria->banner) {
                         $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
                     }
     
-                    // Verificar si hay productos
                     if ($categoria->productos) {
                         $categoria->productos->transform(function ($producto) {
-                            // CORRECCIÓN: La imagen principal está en una carpeta diferente
                             if ($producto->imagen_principal) {
                                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
                             }
     
-                            // Transformar las imágenes del producto
                             if ($producto->images) {
                                 $producto->images->transform(function ($image) {
                                     if ($image->imagen) {
@@ -153,9 +148,13 @@ class CatalogoController extends Controller
         });
     
         // Registrar en el log las URLs generadas para depuración
-        \Log::info('URLs de imágenes principales:', [
-            'ejemplo' => $catalogos->first()->categorias->first()->productos->first()->imagen_principal ?? 'No hay productos'
-        ]);
+        if ($catalogos->isNotEmpty() && $catalogos->first()->categorias->isNotEmpty() && $catalogos->first()->categorias->first()->productos->isNotEmpty()) {
+            \log::info('URLs de imágenes principales:', [
+                'ejemplo' => $catalogos->first()->categorias->first()->productos->first()->imagen_principal
+            ]);
+        } else {
+            \Log::info('No hay productos disponibles o catálogos vacíos.');
+        }
     
         return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
     }
