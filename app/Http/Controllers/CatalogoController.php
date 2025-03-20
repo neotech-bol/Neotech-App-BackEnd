@@ -148,14 +148,14 @@ class CatalogoController extends Controller
         });
     
         // Registrar en el log las URLs generadas para depuración
-        if ($catalogos->isNotEmpty() && $catalogos->first()->categorias->isNotEmpty() && $catalogos->first()->categorias->first()->productos->isNotEmpty()) {
+     /*    if ($catalogos->isNotEmpty() && $catalogos->first()->categorias->isNotEmpty() && $catalogos->first()->categorias->first()->productos->isNotEmpty()) {
             \log::info('URLs de imágenes principales:', [
                 'ejemplo' => $catalogos->first()->categorias->first()->productos->first()->imagen_principal
             ]);
         } else {
             \Log::info('No hay productos disponibles o catálogos vacíos.');
         }
-    
+     */
         return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
     }
     /**
