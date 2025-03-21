@@ -453,6 +453,11 @@
                 </thead>
                 <tbody>
                     @foreach ($pedido->productos as $producto)
+                    @php
+                        // Determinar el precio correcto según el tipo (preventa o regular)
+                        $precioAplicado = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                        $subtotal = $precioAplicado * $producto->pivot->cantidad;
+                    @endphp
                     <tr>
                         <td>
                             {{ $producto->nombre }}
@@ -475,9 +480,9 @@
                         <td>{{ $producto->pivot->color ?? 'N/A' }}</td>
                         <td align="center">{{ $producto->pivot->cantidad }}</td>
                         <td align="right">
-                            <strong>Bs {{ number_format($producto->pivot->precio, 2) }}</strong>
+                            <strong>Bs {{ number_format($precioAplicado, 2) }}</strong>
                         </td>
-                        <td align="right">Bs {{ number_format($producto->pivot->precio * $producto->pivot->cantidad, 2) }}</td>
+                        <td align="right">Bs {{ number_format($subtotal, 2) }}</td>
                         <td>
                             @if($producto->pivot->es_preventa)
                                 <!-- Información de Preventa -->
