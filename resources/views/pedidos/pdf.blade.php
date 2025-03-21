@@ -254,6 +254,18 @@
             vertical-align: middle;
         }
         
+        .regular-badge {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            margin-left: 3px;
+            vertical-align: middle;
+        }
+        
         .preventa-info {
             background-color: #fffbeb;
             border: 1px dashed #f59e0b;
@@ -263,18 +275,41 @@
             font-size: 7px;
         }
         
-        .preventa-details {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
+        .regular-info {
+            background-color: #eff6ff;
+            border: 1px dashed #3b82f6;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin-top: 2px;
+            font-size: 7px;
         }
         
-        .preventa-detail {
-            background-color: #fff7ed;
-            border-radius: 2px;
-            padding: 1px 3px;
+        .price-comparison {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2px;
             font-size: 7px;
-            color: #9a3412;
+            border-top: 1px dotted #e5e7eb;
+            padding-top: 2px;
+        }
+        
+        .price-tag {
+            display: inline-block;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: bold;
+            font-size: 7px;
+        }
+        
+        .price-tag.selected {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        .price-tag.not-selected {
+            background-color: #e5e7eb;
+            color: #6b7280;
+            text-decoration: line-through;
         }
         
         /* Ajustes de página */
@@ -411,9 +446,9 @@
                         <th width="15%">Modelo</th>
                         <th width="10%">Color</th>
                         <th width="5%">Cant.</th>
-                        <th width="15%">Precio</th>
+                        <th width="15%">Precio Aplicado</th>
                         <th width="15%">Subtotal</th>
-                        <th width="15%">Tipo</th>
+                        <th width="15%">Tipo de Precio</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -423,6 +458,8 @@
                             {{ $producto->nombre }}
                             @if($producto->pivot->es_preventa)
                             <span class="preventa-badge">PREVENTA</span>
+                            @else
+                            <span class="regular-badge">REGULAR</span>
                             @endif
                         </td>
                         <td>
@@ -437,26 +474,50 @@
                         </td>
                         <td>{{ $producto->pivot->color ?? 'N/A' }}</td>
                         <td align="center">{{ $producto->pivot->cantidad }}</td>
-                        <td align="right">Bs {{ number_format($producto->pivot->precio, 2) }}</td>
+                        <td align="right">
+                            <strong>Bs {{ number_format($producto->pivot->precio, 2) }}</strong>
+                        </td>
                         <td align="right">Bs {{ number_format($producto->pivot->precio * $producto->pivot->cantidad, 2) }}</td>
                         <td>
                             @if($producto->pivot->es_preventa)
+                                <!-- Información de Preventa -->
                                 <div class="preventa-info">
-                                    <div class="preventa-details">
-                                        <span class="preventa-detail">Min: {{ $producto->pivot->cantidad_minima_preventa }}</span>
-                                        <span class="preventa-detail">Max: {{ $producto->pivot->cantidad_maxima_preventa }}</span>
+                                    <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
+                                    
+                                    <!-- Comparación de precios -->
+                                    <div class="price-comparison">
+                                        <div>
+                                            <span class="price-tag selected">Preventa: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="price-tag not-selected">Regular: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
+                                        </div>
                                     </div>
-                                    @if($producto->pivot->precio_original)
+                                    
+                                    <!-- Rango de cantidades -->
                                     <div style="margin-top: 2px;">
-                                        <small>Precio regular: Bs {{ number_format($producto->pivot->precio_original, 2) }}</small>
+                                        <div>Rango de preventa: {{ $producto->pivot->cantidad_minima_preventa ?? 3 }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 5 }} unidades</div>
                                     </div>
-                                    @endif
                                 </div>
                             @else
-                                <div style="font-size: 7px;">
-                                    Regular
-                                    <div>Min: {{ $producto->pivot->cantidad_minima ?? 1 }}</div>
-                                    <div>Max: {{ $producto->pivot->cantidad_maxima ?? 'N/A' }}</div>
+                                <!-- Información de Precio Regular -->
+                                <div class="regular-info">
+                                    <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
+                                    
+                                    <!-- Comparación de precios -->
+                                    <div class="price-comparison">
+                                        <div>
+                                            <span class="price-tag not-selected">Preventa: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="price-tag selected">Regular: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Rango de cantidades -->
+                                    <div style="margin-top: 2px;">
+                                        <div>Rango regular: {{ $producto->pivot->cantidad_minima ?? 1 }} - {{ $producto->pivot->cantidad_maxima ?? 999 }} unidades</div>
+                                    </div>
                                 </div>
                             @endif
                         </td>
@@ -493,13 +554,25 @@
             </div>
         </div>
 
-        <!-- Leyenda de preventa -->
-        <div class="section" style="background-color: #fffbeb; border: 1px dashed #f59e0b;">
-            <h2 class="section-title" style="color: #9a3412; border-color: #fdba74;">Información de Preventa</h2>
-            <p style="font-size: 8px; margin: 0;">
-                Los productos en <strong>PREVENTA</strong> tienen un precio especial y están sujetos a cantidades mínimas y máximas específicas.
-                El precio de preventa se aplica únicamente cuando la cantidad del producto está dentro del rango establecido.
-            </p>
+        <!-- Leyenda de tipos de precio -->
+        <div class="section" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+            <h2 class="section-title">Información de Precios</h2>
+            <div style="display: flex; gap: 10px; font-size: 8px;">
+                <div style="flex: 1; background-color: #fffbeb; border: 1px dashed #f59e0b; padding: 3px; border-radius: 3px;">
+                    <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
+                    <p style="margin: 2px 0;">
+                        Precio especial aplicado cuando la cantidad está entre el mínimo y máximo de preventa.
+                        <br>Rango típico: 3-5 unidades.
+                    </p>
+                </div>
+                <div style="flex: 1; background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 3px; border-radius: 3px;">
+                    <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
+                    <p style="margin: 2px 0;">
+                        Precio estándar aplicado cuando la cantidad está fuera del rango de preventa.
+                        <br>Rango típico: 1+ unidades.
+                    </p>
+                </div>
+            </div>
         </div>
 
         <!-- Mensaje de agradecimiento -->
