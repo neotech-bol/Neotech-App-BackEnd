@@ -241,6 +241,71 @@
             color: #4f46e5;
         }
         
+        /* Estilos para preventa */
+        .preventa-badge {
+            display: inline-block;
+            background-color: #f59e0b;
+            color: white;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            margin-left: 3px;
+            vertical-align: middle;
+        }
+        
+        .regular-badge {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            margin-left: 3px;
+            vertical-align: middle;
+        }
+        
+        .preventa-info {
+            background-color: #fffbeb;
+            border: 1px dashed #f59e0b;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin-top: 2px;
+            font-size: 7px;
+        }
+        
+        .regular-info {
+            background-color: #eff6ff;
+            border: 1px dashed #3b82f6;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin-top: 2px;
+            font-size: 7px;
+        }
+        
+        .preventa-details, .regular-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        
+        .preventa-detail {
+            background-color: #fff7ed;
+            border-radius: 2px;
+            padding: 1px 3px;
+            font-size: 7px;
+            color: #9a3412;
+        }
+        
+        .regular-detail {
+            background-color: #dbeafe;
+            border-radius: 2px;
+            padding: 1px 3px;
+            font-size: 7px;
+            color: #1e40af;
+        }
+        
         /* Ajustes de página */
         @page {
             margin: 0.3cm;
@@ -371,18 +436,21 @@
             <table class="products">
                 <thead>
                     <tr>
-                        <th width="30%">Producto</th>
-                        <th width="20%">Modelo</th>
-                        <th width="15%">Color</th>
+                        <th width="25%">Producto</th>
+                        <th width="15%">Modelo</th>
+                        <th width="10%">Color</th>
                         <th width="5%">Cant.</th>
                         <th width="15%">Precio</th>
                         <th width="15%">Subtotal</th>
+                        <th width="15%">Tipo</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($pedido->productos as $producto)
                     <tr>
-                        <td>{{ $producto->nombre }}</td>
+                        <td>
+                            {{ $producto->nombre }}
+                        </td>
                         <td>
                             @if($producto->pivot->modelo_id)
                                 @php
@@ -397,6 +465,35 @@
                         <td align="center">{{ $producto->pivot->cantidad }}</td>
                         <td align="right">Bs {{ number_format($producto->pivot->precio, 2) }}</td>
                         <td align="right">Bs {{ number_format($producto->pivot->precio * $producto->pivot->cantidad, 2) }}</td>
+                        <td>
+                            @if(isset($producto->pivot->es_preventa) && $producto->pivot->es_preventa)
+                                <span class="preventa-badge">PREVENTA</span>
+                                <div class="preventa-info">
+                                    <div class="preventa-details">
+                                        <span class="preventa-detail">Min: {{ $producto->pivot->cantidad_minima_preventa ?? 3 }}</span>
+                                        <span class="preventa-detail">Max: {{ $producto->pivot->cantidad_maxima_preventa ?? 5 }}</span>
+                                    </div>
+                                    @if(isset($producto->pivot->precio_original) && $producto->pivot->precio_original)
+                                    <div style="margin-top: 2px;">
+                                        <small>Precio regular: Bs {{ number_format($producto->pivot->precio_original, 2) }}</small>
+                                    </div>
+                                    @endif
+                                </div>
+                            @else
+                                <span class="regular-badge">REGULAR</span>
+                                <div class="regular-info">
+                                    <div class="regular-details">
+                                        <span class="regular-detail">Min: {{ $producto->pivot->cantidad_minima ?? 1 }}</span>
+                                        <span class="regular-detail">Max: {{ $producto->pivot->cantidad_maxima ?? 999 }}</span>
+                                    </div>
+                                    @if(isset($producto->pivot->precio_preventa) && $producto->pivot->precio_preventa)
+                                    <div style="margin-top: 2px;">
+                                        <small>Precio preventa: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</small>
+                                    </div>
+                                    @endif
+                                </div>
+                            @endif
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -430,6 +527,42 @@
             </div>
         </div>
 
+        <!-- Leyenda de tipos de precio -->
+        <div class="three-columns">
+            <!-- Leyenda de preventa -->
+            <div class="column">
+                <div class="section" style="background-color: #fffbeb; border: 1px dashed #f59e0b;">
+                    <h2 class="section-title" style="color: #9a3412; border-color: #fdba74;">Información de Preventa</h2>
+                    <p style="font-size: 8px; margin: 0;">
+                        Los productos en <strong>PREVENTA</strong> tienen un precio especial y están sujetos a cantidades mínimas y máximas específicas.
+                        El precio de preventa se aplica únicamente cuando la cantidad del producto está dentro del rango establecido.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Leyenda de precio regular -->
+            <div class="column">
+                <div class="section" style="background-color: #eff6ff; border: 1px dashed #3b82f6;">
+                    <h2 class="section-title" style="color: #1e40af; border-color: #93c5fd;">Información de Precio Regular</h2>
+                    <p style="font-size: 8px; margin: 0;">
+                        Los productos con precio <strong>REGULAR</strong> se venden al precio estándar y tienen sus propias cantidades mínimas y máximas.
+                        Este es el precio normal del producto fuera de promociones especiales.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Leyenda de cambio de precio -->
+            <div class="column">
+                <div class="section" style="background-color: #f0fdf4; border: 1px dashed #22c55e;">
+                    <h2 class="section-title" style="color: #166534; border-color: #86efac;">Cambios de Precio</h2>
+                    <p style="font-size: 8px; margin: 0;">
+                        El precio puede variar según la cantidad. Si la cantidad está dentro del rango de preventa, se aplica el precio de preventa.
+                        Si está fuera de ese rango, se aplica el precio regular.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Mensaje de agradecimiento -->
         <div class="thank-you">
             ¡Gracias por su compra!
@@ -438,9 +571,9 @@
         <!-- Pie de página -->
         <div class="footer">
             <p>Este documento es un comprobante oficial de su pedido.</p>
-            <p>Para consultas: +591 XXXXXXXX | info@miempresa.com | www.miempresa.com</p>
+            <p>Para consultas: +591 XXXXXXXX | <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e68f888089a68b8f838b9694839587c885898b">[email&#160;protected]</a> | www.miempresa.com</p>
             <p>© {{ date('Y') }} Mi Empresa. Todos los derechos reservados.</p>
         </div>
     </div>
-</body>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
 </html>
