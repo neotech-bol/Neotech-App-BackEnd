@@ -12,7 +12,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         // Obtener los parámetros de búsqueda de la solicitud
-        $query = User::with('roles', 'favorites', 'pedidos.productos');
+        $query = User::with('roles', 'pedidos.productos');
 
         // Filtrar por el parámetro de búsqueda general
         if ($request->has('search') && $request->search != '') {
