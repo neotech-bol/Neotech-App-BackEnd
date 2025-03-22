@@ -21,6 +21,11 @@ return new class extends Migration
             $table->string('servicio_solicitado');
             $table->text('mensaje');
             $table->string('departamento');
+            $table->boolean('estado')->default(false);
+            $table->string('ip_address')->nullable(); // Dirección IP del usuario
+            $table->string('metodo_solicitud')->nullable(); // Método de solicitud de la cita
+            $table->integer('duracion')->nullable(); // Duración de la cita en minutos
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Usuario que realizó la cita
             $table->timestamps();
         });
     }

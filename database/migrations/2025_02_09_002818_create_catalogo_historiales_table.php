@@ -19,6 +19,13 @@ return new class extends Migration
             $table->string('banner')->nullable();
             $table->integer('orden')->default(0);
             $table->boolean('estado')->default(true);
+
+            //a futuro
+            $table->dateTime('fecha_inicio')->nullable(); // Fecha de inicio de validez
+            $table->dateTime('fecha_fin')->nullable(); // Fecha de fin de validez
+            $table->string('tipo')->nullable(); // Tipo de catálogo (opcional)
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Usuario que realizó el cambio
+            $table->boolean('publicado')->default(false); // Indica si el catálogo está publicado
             $table->timestamps();
         });
     }

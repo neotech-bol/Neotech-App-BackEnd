@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('precio_preventa', 10, 2)->nullable(); // Campo para precio de preventa
             $table->integer('cantidad_minima_preventa')->nullable(); // Cantidad mínima para preventa
             $table->integer('cantidad_maxima_preventa')->nullable(); // Cantidad máxima para preventa
-            $table->boolean('estado')->default(true);
+            $table->boolean('estado')->default(false);
             $table->integer('cantidad')->default(0); // Campo para la cantidad
             $table->string('imagen_principal')->nullable(); // Campo para la imagen principal
             $table->timestamps();

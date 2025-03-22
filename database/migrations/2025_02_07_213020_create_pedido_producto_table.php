@@ -21,6 +21,13 @@ return new class extends Migration
             $table->boolean('es_preventa')->default(false); // Indica si la compra fue con precio de preventa
             $table->integer('cantidad')->default(1);
             $table->string('color')->nullable(); // Opcional: si también quieres guardar el color
+
+            // futuro
+            $table->decimal('subtotal', 10, 2)->nullable(); // Subtotal para este producto
+            $table->decimal('descuento', 10, 2)->nullable(); // Descuento aplicado a este producto
+            $table->decimal('impuesto', 10, 2)->nullable(); // Impuesto aplicado a este producto
+            $table->text('notas')->nullable(); // Notas sobre el producto
+            $table->string('estado_producto')->default('en espera'); // Estado del producto en el pedido
             $table->timestamps();
         });
     }

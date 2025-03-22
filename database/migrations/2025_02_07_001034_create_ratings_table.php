@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade')->onUpdate('cascade');
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade')->onUpdate('cascade');
-            $table->integer('rating'); // Calificación (por ejemplo, del 1 al 5)
+            $table->integer('rating')->check('rating >= 1 AND rating <= 5'); // Calificación entre 1 y 5
             $table->text('comment')->nullable(); // Comentario opcional
+            $table->enum('estado', ['pendiente', 'aprobada', 'rechazada'])->default('pendiente'); // Estado de la calificación
+            $table->string('ip_address')->nullable(); // Dirección IP del usuario
             $table->timestamps();
         });
     }

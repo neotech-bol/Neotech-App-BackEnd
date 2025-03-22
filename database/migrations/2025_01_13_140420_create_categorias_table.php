@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('titulo');
             $table->string('subtitulo');
             $table->text('descripcion')->nullable();
-            $table->boolean('estado')->default(true);
+            $table->boolean('estado')->default(false);
             $table->timestamps();
         });
     }

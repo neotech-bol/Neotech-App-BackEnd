@@ -18,6 +18,13 @@ return new class extends Migration
             $table->string('correo');
             $table->text('mensaje');
             $table->string('departamento');
+            $table->boolean('estado')->default(false); // Estado de la consulta
+            //a futuro
+            $table->boolean('correo_valido')->default(true); // Indica si el correo es válido
+            $table->dateTime('fecha_envio')->nullable(); // Fecha y hora de envío
+            $table->string('ip_address')->nullable(); // Dirección IP del usuario
+            $table->string('metodo_contacto')->nullable(); // Método de contacto
+            $table->boolean('respondido')->default(false); // Indica si el mensaje ha sido respondido
             $table->timestamps();
         });
     }

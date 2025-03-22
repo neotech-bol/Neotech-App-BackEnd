@@ -19,6 +19,7 @@ return new class extends Migration
             $table->dateTime('fecha_inicio'); // Fecha de inicio de validez
             $table->dateTime('fecha_fin'); // Fecha de fin de validez
             $table->boolean('activo')->default(true); // Estado del cupón
+            $table->boolean('usado')->nullable()->default(false); // Estado del uso del cupón
             $table->timestamps();
         });
     }

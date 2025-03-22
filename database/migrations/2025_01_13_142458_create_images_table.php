@@ -16,6 +16,10 @@ return new class extends Migration
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade')->onUpdate('cascade');
             $table->string('imagen')->nullable();
             $table->string('color')->nullable();
+            $table->boolean('estado')->default(false);
+            $table->string('alt')->nullable();
+            $table->string('title')->nullable();
+            $table->string('descripcion')->nullable();
             $table->timestamps();
         });
     }

@@ -12,13 +12,17 @@ class PermissionsTableSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
+            'Gestionar Dashboard',
             'Gestionar Usuarios',
             'Gestionar Catalogos',
+            'Gestionar Catalogos Historiales',
             'Gestionar Categorias',
             'Gestionar Productos',
             'Gestionar Roles',
             'Gestionar Pedidos',
-            'Gestionar Cupones'
+            'Gestionar Cupones',
+            'Gestionar Testimonios',
+            'Gestionar Contactanos',
         ];
 
         // Usa firstOrCreate() para evitar duplicados
