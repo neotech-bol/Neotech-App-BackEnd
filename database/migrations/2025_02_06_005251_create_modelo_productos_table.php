@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('modelo_productos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('producto_id')->nullable()->constrained()->onDelete('cascade'); // Relación con el producto (ahora nullable)
+            $table->foreignId('producto_id')->nullable()->constrained('productos')->onDelete('cascade'); // Relación con el producto (ahora nullable)
             $table->string('nombre'); // Nombre del modelo
             $table->decimal('precio', 10, 2); // Precio del modelo
             $table->decimal('precio_preventa', 10, 2)->nullable(); // Precio de preventa
