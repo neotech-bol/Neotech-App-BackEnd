@@ -63,7 +63,7 @@ class UserController extends Controller
     }
     public function show(string $id)
     {
-        $item = User::with('roles')->findOrFail($id);
+        $item = User::with('roles', 'pedidos.productos')->findOrFail($id);
         return response()->json(["mensaje" => "Dato cargado", "dato" => $item], 200);
     }
     public function update(Request $request, string $id)
