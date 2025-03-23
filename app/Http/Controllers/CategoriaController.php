@@ -156,7 +156,7 @@ class CategoriaController extends Controller
                 // Iterar sobre las imágenes del producto
                 foreach ($producto->images as $image) {
                     if ($image->imagen) { // Asegúrate de que 'imagen' sea el nombre correcto del campo
-                        $image->imagen = asset("images/imagenes_principales/" . $image->imagen); // Cambia la ruta según sea necesario
+                        $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
                     }
                 }
             }
