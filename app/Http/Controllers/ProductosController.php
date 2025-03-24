@@ -605,4 +605,10 @@ class ProductosController extends Controller
         // Retornar la respuesta JSON con los productos filtrados
         return response()->json(["mensaje" => "Productos filtrados correctamente", "datos" => $productos], 200);
     }
+    public function cambiarEstado (String $id) {
+        $item = Producto::findOrFail($id);
+        $item->estado = !$item->estado;
+        $item->save();
+        return response()->json(["mensaje"=> "Estado modificado", "dato" => $item], 200);
+    }
 }

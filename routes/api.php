@@ -95,7 +95,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/producto/{id}', [ProductosController::class, 'show']);
     Route::put('/producto/{id}', [ProductosController::class, 'update']);
     Route::delete('productos/{productoId}/images/{imagenId}', [ProductosController::class, 'destroyImage']);
-
+    Route::delete('/producto/{id}', [ProductosController::class, 'cambiarEstado']);
     //favorites
     Route::get('/favorites', [favoriteController::class, 'index']);
     Route::post('/favorite-nuevo', [favoriteController::class, 'store']);
