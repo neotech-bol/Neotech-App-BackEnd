@@ -166,11 +166,13 @@ class CategoriaController extends Controller
     }
     public function getActiveCategorias()
     {
-        // Obtener los IDs y nombres de los historiales activos
+        // Obtener los IDs y nombres de los historiales activos de forma aleatoria
         $categoriasActives = Categoria::where('estado', true) // Filtrar solo historiales activos
             ->select('id', 'nombre') // Asegúrate de que 'nombre' es el campo correcto
+            ->inRandomOrder() // Ordenar aleatoriamente
+            ->limit(5) // Limitar a 5 resultados
             ->get(); // Obtener los resultados
-
+    
         return response()->json(['mensaje' => 'Categorias activas', 'datos' => $categoriasActives], 200);
     }
 /**
