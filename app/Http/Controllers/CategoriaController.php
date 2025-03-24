@@ -173,4 +173,55 @@ class CategoriaController extends Controller
 
         return response()->json(['mensaje' => 'Categorias activas', 'datos' => $categoriasActives], 200);
     }
+/**
+ * Obtener una categoría activa específica por ID con sus productos
+ *
+ * @param int $id ID de la categoría
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function getCategoriaActiveById($id)
+{
+    // Obtener la categoría específica con sus productos
+    $categoria = Categoria::with([
+        'productos' => function ($query) {
+            $query->where('estado', true); // Solo productos activos
+        },
+        'productos.images',
+        'productos.caracteristicas',
+        'productos.modelos'
+    ])
+    ->where('id', $id)
+    ->where('estado', true)
+    ->first();
+
+    // Verificar si se encontró la categoría
+    if (!$categoria) {
+        return response()->json(['mensaje' => 'Categoría no encontrada o inactiva'], 404);
+    }
+
+    // Transformar la estructura para incluir las URLs completas
+    if ($categoria->banner) {
+        $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
+    }
+    
+
+    $categoria->productos->transform(function ($producto) {
+        if ($producto->imagen_principal) {
+            $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+        }
+
+        $producto->images->transform(function ($image) {
+            $image->imagen = asset("images/productos/" . $image->imagen);
+            return $image;
+        });
+
+        return $producto;
+    });
+
+    // Retornar respuesta JSON con la categoría
+    return response()->json([
+        'mensaje' => 'Categoría cargada correctamente', 
+        'datos' => $categoria
+    ], 200);
+}
 }
