@@ -99,7 +99,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     //favorites
     Route::get('/favorites', [favoriteController::class, 'index']);
     Route::post('/favorite-nuevo', [favoriteController::class, 'store']);
-
+    Route::delete('/favorite/{id}', [favoriteController::class, 'destroy']);
     //Pedidos
     Route::get('/pedidos', [PedidoController::class, 'index']);
     Route::get('/pedido/{id}', [PedidoController::class, 'show']);

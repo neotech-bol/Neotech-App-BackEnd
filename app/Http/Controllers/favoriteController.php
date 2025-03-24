@@ -94,8 +94,27 @@ class favoriteController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-        //
+/**
+ * Remove the specified resource from storage.
+ */
+public function destroy(string $id)
+{
+    // Obtener el usuario autenticado
+    $user = auth()->user();
+
+    // Buscar el favorito que se desea eliminar
+    $favorite = Favorite::where('user_id', $user->id)
+                        ->where('id', $id)
+                        ->first();
+
+    // Verificar si el favorito existe
+    if (!$favorite) {
+        return response()->json(['message' => 'Favorito no encontrado.'], 404); // 404 Not Found
     }
+
+    // Eliminar el favorito
+    $favorite->delete();
+
+    return response()->json(['message' => 'Favorito eliminado correctamente.'], 200); // 200 OK
+}
 }
