@@ -158,6 +158,7 @@ Route::get('/categorias-acticas-users', [CategoriaController::class, 'search']);
 Route::get('/producto-ver/{id}', [ProductosController::class, 'showProductoUser']);
 Route::get('/productos-recientes', [ProductosController::class, 'productosRecientes']);
 Route::get('/categorias-activas-home', [CategoriaController::class, 'indexActivos']);
+Route::get('/categorias-activas-ids', [CategoriaController::class, 'getActiveCategorias']);
 Route::get('/productos/filtrar', [ProductosController::class, 'filtrarProductos']);
 Route::get('/historiales-activos', [CatalogoHistorialController::class, 'indexActivos']);
 Route::get('/historiales-activos-ids', [CatalogoHistorialController::class, 'getActiveHistorials']);

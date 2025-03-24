@@ -164,4 +164,13 @@ class CategoriaController extends Controller
 
         return response()->json(["mensaje" => "Categorias cargadas correctamente", "datos" => $item], 200);
     }
+    public function getActiveCategorias()
+    {
+        // Obtener los IDs y nombres de los historiales activos
+        $categoriasActives = Categoria::where('estado', true) // Filtrar solo historiales activos
+            ->select('id', 'nombre') // Asegúrate de que 'nombre' es el campo correcto
+            ->get(); // Obtener los resultados
+
+        return response()->json(['mensaje' => 'Categorias activas', 'datos' => $categoriasActives], 200);
+    }
 }
