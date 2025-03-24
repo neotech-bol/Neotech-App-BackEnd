@@ -105,13 +105,19 @@ class CatalogoController extends Controller
     public function indexActivos(Request $request)
     {
         // Eliminamos el caché como solicitaste
-        $catalogos = Catalogo::with(['categorias' => function ($query) {
+        $catalogos = Catalogo::with([
+            'categorias' => function ($query) {
                 $query->where('estado', true); // Filtrar solo categorías activas
-            }, 'categorias.productos.images']) // Cargar imágenes de productos
-            ->where('estado', true)
-            ->orderBy('orden', 'desc')
-            ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
-            ->get();
+            },
+            'categorias.productos' => function ($query) {
+                $query->where('estado', true); // Filtrar solo productos activos
+            },
+            'categorias.productos.images' // Cargar imágenes de productos
+        ])
+        ->where('estado', true) // Asegurarse de que el catálogo esté activo
+        ->orderBy('orden', 'desc')
+        ->orderBy('id', 'desc') // Ordenar por el campo 'id' en orden descendente
+        ->get();
     
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogos->transform(function ($catalogo) {
@@ -147,15 +153,6 @@ class CatalogoController extends Controller
             return $catalogo;
         });
     
-        // Registrar en el log las URLs generadas para depuración
-     /*    if ($catalogos->isNotEmpty() && $catalogos->first()->categorias->isNotEmpty() && $catalogos->first()->categorias->first()->productos->isNotEmpty()) {
-            \log::info('URLs de imágenes principales:', [
-                'ejemplo' => $catalogos->first()->categorias->first()->productos->first()->imagen_principal
-            ]);
-        } else {
-            \Log::info('No hay productos disponibles o catálogos vacíos.');
-        }
-     */
         return response()->json(['mensaje' => 'Catálogos activos', 'datos' => $catalogos], 200);
     }
     /**
@@ -203,40 +200,46 @@ class CatalogoController extends Controller
             'categorias' => function ($query) {
                 $query->where('estado', true); // Filtrar solo categorías activas
             },
+            'categorias.productos' => function ($query) {
+                $query->where('estado', true); // Filtrar solo productos activos
+            },
             'categorias.productos.images', // Cargar imágenes de productos
             'categorias.productos.caracteristicas',
             'categorias.productos.modelos'
         ])
-            ->where('id', $id) // Filtrar por el ID del catálogo
-            ->where('estado', true) // Asegurarse de que el catálogo esté activo
-            ->first();
-
+        ->where('id', $id) // Filtrar por el ID del catálogo
+        ->where('estado', true) // Asegurarse de que el catálogo esté activo
+        ->first();
+    
         // Verificar si se encontró el catálogo
         if (!$catalogo) {
             return response()->json(['mensaje' => 'Catálogo no encontrado o inactivo'], 404);
         }
-
+    
         // Modificar la estructura para incluir las URLs de las imágenes
         $catalogo->banner = asset("images/catalogos/banners/" . $catalogo->banner); // Asumiendo que el banner está en la ruta especificada
-
+    
         $catalogo->categorias->transform(function ($categoria) {
             $categoria->banner = asset("images/categorias/banners/" . $categoria->banner); // Asumiendo que el banner de la categoría está en la ruta especificada
-
-            $categoria->productos->transform(function ($producto) {
-                $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
-
-                // Transformar las imágenes del producto
-                $producto->images->transform(function ($image) {
-                    $image->imagen = asset("images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
-                    return $image;
+    
+            // Filtrar productos activos
+            if ($categoria->productos) {
+                $categoria->productos->transform(function ($producto) {
+                    $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Asumiendo que la imagen principal está en la ruta especificada
+    
+                    // Transformar las imágenes del producto
+                    $producto->images->transform(function ($image) {
+                        $image->imagen = asset("images/productos/" . $image->imagen); // Asumiendo que las imágenes están en la ruta especificada
+                        return $image;
+                    });
+    
+                    return $producto;
                 });
-
-                return $producto;
-            });
-
+            }
+    
             return $categoria;
         });
-
+    
         return response()->json(['mensaje' => 'Catálogo cargado', 'datos' => $catalogo], 200);
     }
 }

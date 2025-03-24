@@ -530,27 +530,34 @@ class ProductosController extends Controller
     }
     public function productosRecientes()
     {
-        // Obtener los 4 productos más recientes
+        // Obtener los 5 productos más recientes que están activos y pertenecen a categorías y catálogos activos
         $productos = Producto::with('images', 'categoria')
+            ->where('estado', true) // Filtrar solo productos activos
+            ->whereHas('categoria', function ($query) {
+                $query->where('estado', true) // Asegúrate de que solo se obtengan categorías activas
+                    ->whereHas('catalogo', function ($query) {
+                        $query->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
+                    });
+            })
             ->orderBy('created_at', 'desc') // Ordenar por fecha de creación
-            ->take(5) // Limitar a 4 productos
+            ->take(5) // Limitar a 5 productos
             ->get();
-
+    
         // Modificar las imágenes para incluir la URL completa
         $productos->transform(function ($producto) {
             $producto->images->transform(function ($image) {
                 $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
                 return $image;
             });
-
+    
             // Modificar la imagen principal para incluir la URL completa
             if ($producto->imagen_principal) {
                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Cambia la ruta según sea necesario
             }
-
+    
             return $producto;
         });
-
+    
         return response()->json(["mensaje" => "Productos recientes cargados correctamente", "datos" => $productos], 200);
     }
 
@@ -560,22 +567,32 @@ class ProductosController extends Controller
         $categoriaId = $request->input('categoria_id');
         $catalogoId = $request->input('catalogo_id');
         $search = $request->input('search');
-
+    
         // Iniciar la consulta
-        $query = Producto::with('images', 'categoria', 'caracteristicas', 'modelos');
-
+        $query = Producto::with('images', 'categoria', 'caracteristicas', 'modelos')
+            ->where('estado', true) // Filtrar solo productos activos
+            ->whereHas('categoria', function ($q) {
+                $q->where('estado', true) // Asegúrate de que solo se obtengan categorías activas
+                  ->whereHas('catalogo', function ($q) {
+                      $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
+                  });
+            });
+    
         // Aplicar filtro por categoría si se proporciona
         if ($categoriaId) {
             $query->where('categoria_id', $categoriaId);
         }
-
+    
         // Aplicar filtro por catálogo a través de la relación de categoría si se proporciona
         if ($catalogoId) {
             $query->whereHas('categoria', function ($q) use ($catalogoId) {
-                $q->where('catalogo_id', $catalogoId); // Asegúrate de que 'catalogo_id' es el nombre correcto de la columna en la tabla de categorías
+                $q->where('catalogo_id', $catalogoId) // Asegúrate de que 'catalogo_id' es el nombre correcto de la columna en la tabla de categorías
+                  ->whereHas('catalogo', function ($q) {
+                      $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
+                  });
             });
         }
-
+    
         // Aplicar búsqueda por nombre o descripción si se proporciona
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -583,25 +600,26 @@ class ProductosController extends Controller
                     ->orWhere('descripcion', 'like', '%' . $search . '%');
             });
         }
-
+    
         // Ejecutar la consulta y obtener los resultados
         $productos = $query->get();
-
+    
         // Modificar las imágenes para incluir la URL completa
         $productos->transform(function ($producto) {
+            // Transformar las imágenes del producto
             $producto->images->transform(function ($image) {
                 $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
                 return $image;
             });
-
+    
             // Modificar la imagen principal para incluir la URL completa
             if ($producto->imagen_principal) {
                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Cambia la ruta según sea necesario
             }
-
+    
             return $producto;
         });
-
+    
         // Retornar la respuesta JSON con los productos filtrados
         return response()->json(["mensaje" => "Productos filtrados correctamente", "datos" => $productos], 200);
     }
