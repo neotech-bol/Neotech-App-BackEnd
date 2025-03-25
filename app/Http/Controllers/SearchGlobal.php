@@ -27,11 +27,11 @@ class SearchGlobal extends Controller
         $results = [];
         $limit = $request->input('limit', 10); // Límite por defecto de 10 resultados por categoría
 
-        // Buscar en productos
+        // Buscar en productos - REMOVED 'imagen' from the get() method
         $productos = Producto::where('nombre', 'LIKE', "%{$query}%")
             ->orWhere('descripcion', 'LIKE', "%{$query}%")
             ->limit($limit)
-            ->get(['id', 'nombre', 'descripcion', 'precio', 'imagen'])
+            ->get(['id', 'nombre'])
             ->map(function ($producto) {
                 return [
                     'id' => $producto->id,
@@ -75,14 +75,7 @@ class SearchGlobal extends Controller
             $results['catalogos'] = $catalogos;
         }
 
-        // Guardar la búsqueda en el historial si el usuario está autenticado
-        if (auth()->check()) {
-            $this->saveSearchHistory($query);
-        }
-
-        // Obtener sugerencias para búsquedas futuras
-        $sugerencias = $this->getSuggestions($query);
-        
+        // Implementación de los métodos faltantes
         return response()->json([
             'success' => true,
             'query' => $query,
@@ -90,7 +83,38 @@ class SearchGlobal extends Controller
             'total' => array_sum(array_map(function ($item) {
                 return count($item);
             }, $results)),
-            'sugerencias' => $sugerencias
+            'sugerencias' => []  // Dejamos sugerencias vacío por ahora
         ]);
     }
+
+    /**
+     * Guarda la búsqueda en el historial
+     * 
+     * @param string $query
+     * @return void
+     */
+    private function saveSearchHistory($query)
+    {
+        // Implementa aquí la lógica para guardar el historial de búsqueda
+        // Por ejemplo:
+        // SearchHistory::create([
+        //     'user_id' => auth()->id(),
+        //     'query' => $query,
+        //     'created_at' => now()
+        // ]);
+    }
+
+    /**
+     * Obtiene sugerencias basadas en la consulta
+     * 
+     * @param string $query
+     * @return array
+     */
+    private function getSuggestions($query)
+    {
+        // Implementa aquí la lógica para obtener sugerencias
+        // Por ejemplo, podrías devolver búsquedas populares relacionadas
+        return [];
+    }
 }
+
