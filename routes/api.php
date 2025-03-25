@@ -150,6 +150,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
 // Rutas para generación de PDFs
 Route::get('/pedidos/pdf/completados', [PedidoController::class, 'generarPdfPedidosCompletados'])->name('pedidos.pdf.completados');
 Route::get('/pedidos/pdf/en-proceso', [PedidoController::class, 'generarPdfPedidosEnProceso'])->name('pedidos.pdf.en-proceso');
+Route::get('pedidos/catalogo/{catalogoId}/pdf', [PedidoController::class, 'generarPdfPedidosPorCatalogo']);
 });
 
 //Catalogos activos
