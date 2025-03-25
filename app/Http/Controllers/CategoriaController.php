@@ -82,12 +82,26 @@ class CategoriaController extends Controller
 
         $item = Categoria::findOrFail($id);
 
-        // Asignar valores solo si están presentes
-        $item->nombre = $request->filled('nombre') ? $request->nombre : $item->nombre;
-        $item->titulo = $request->filled('titulo') ? $request->titulo : $item->titulo;
-        $item->subtitulo = $request->filled('subtitulo') ? $request->subtitulo : $item->subtitulo;
-        $item->descripcion = $request->filled('descripcion') ? $request->descripcion : $item->descripcion;
-        $item->catalogo_id = $request->filled('catalogo_id') ? $request->catalogo_id : $item->catalogo_id;
+        // Asignar valores solo si están presentes y no son vacíos
+        if ($request->has('nombre') && $request->nombre !== '') {
+            $item->nombre = $request->nombre;
+        }
+
+        if ($request->has('titulo') && $request->titulo !== '') {
+            $item->titulo = $request->titulo;
+        }
+
+        if ($request->has('subtitulo') && $request->subtitulo !== '') {
+            $item->subtitulo = $request->subtitulo;
+        }
+
+        if ($request->has('descripcion') && $request->descripcion !== '') {
+            $item->descripcion = $request->descripcion;
+        }
+
+        if ($request->has('catalogo_id') && $request->catalogo_id !== '') {
+            $item->catalogo_id = $request->catalogo_id;
+        }
 
         // Actualizar la imagen principal si se proporciona una nueva
         if ($request->file('banner')) {
@@ -111,7 +125,7 @@ class CategoriaController extends Controller
         $item = Categoria::findOrFail($id);
         $item->estado = !$item->estado;
         $item->save();
-        return response()->json(["mensaje"=> "Estado modificado", "dato" => $item], 200);
+        return response()->json(["mensaje" => "Estado modificado", "dato" => $item], 200);
     }
     public function indexActivos()
     {
@@ -172,58 +186,58 @@ class CategoriaController extends Controller
             ->inRandomOrder() // Ordenar aleatoriamente
             ->limit(5) // Limitar a 5 resultados
             ->get(); // Obtener los resultados
-    
+
         return response()->json(['mensaje' => 'Categorias activas', 'datos' => $categoriasActives], 200);
     }
-/**
- * Obtener una categoría activa específica por ID con sus productos
- *
- * @param int $id ID de la categoría
- * @return \Illuminate\Http\JsonResponse
- */
-public function getCategoriaActiveById($id)
-{
-    // Obtener la categoría específica con sus productos
-    $categoria = Categoria::with([
-        'productos' => function ($query) {
-            $query->where('estado', true); // Solo productos activos
-        },
-        'productos.images',
-        'productos.caracteristicas',
-        'productos.modelos'
-    ])
-    ->where('id', $id)
-    ->where('estado', true)
-    ->first();
+    /**
+     * Obtener una categoría activa específica por ID con sus productos
+     *
+     * @param int $id ID de la categoría
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCategoriaActiveById($id)
+    {
+        // Obtener la categoría específica con sus productos
+        $categoria = Categoria::with([
+            'productos' => function ($query) {
+                $query->where('estado', true); // Solo productos activos
+            },
+            'productos.images',
+            'productos.caracteristicas',
+            'productos.modelos'
+        ])
+            ->where('id', $id)
+            ->where('estado', true)
+            ->first();
 
-    // Verificar si se encontró la categoría
-    if (!$categoria) {
-        return response()->json(['mensaje' => 'Categoría no encontrada o inactiva'], 404);
-    }
-
-    // Transformar la estructura para incluir las URLs completas
-    if ($categoria->banner) {
-        $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
-    }
-    
-
-    $categoria->productos->transform(function ($producto) {
-        if ($producto->imagen_principal) {
-            $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+        // Verificar si se encontró la categoría
+        if (!$categoria) {
+            return response()->json(['mensaje' => 'Categoría no encontrada o inactiva'], 404);
         }
 
-        $producto->images->transform(function ($image) {
-            $image->imagen = asset("images/productos/" . $image->imagen);
-            return $image;
+        // Transformar la estructura para incluir las URLs completas
+        if ($categoria->banner) {
+            $categoria->banner = asset("images/categorias/banners/" . $categoria->banner);
+        }
+
+
+        $categoria->productos->transform(function ($producto) {
+            if ($producto->imagen_principal) {
+                $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal);
+            }
+
+            $producto->images->transform(function ($image) {
+                $image->imagen = asset("images/productos/" . $image->imagen);
+                return $image;
+            });
+
+            return $producto;
         });
 
-        return $producto;
-    });
-
-    // Retornar respuesta JSON con la categoría
-    return response()->json([
-        'mensaje' => 'Categoría cargada correctamente', 
-        'datos' => $categoria
-    ], 200);
-}
+        // Retornar respuesta JSON con la categoría
+        return response()->json([
+            'mensaje' => 'Categoría cargada correctamente',
+            'datos' => $categoria
+        ], 200);
+    }
 }
