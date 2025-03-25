@@ -36,11 +36,6 @@ class SearchGlobal extends Controller
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
-                    'descripcion' => $producto->descripcion,
-                    'precio' => $producto->precio,
-                    'imagen' => $producto->imagen,
-                    'tipo' => 'producto',
-                    'url' => "/producto/{$producto->id}"
                 ];
             });
         
@@ -57,9 +52,6 @@ class SearchGlobal extends Controller
                 return [
                     'id' => $categoria->id,
                     'nombre' => $categoria->nombre,
-                    'descripcion' => $categoria->descripcion,
-                    'tipo' => 'categoria',
-                    'url' => "/categoria/{$categoria->id}"
                 ];
             });
         
@@ -76,8 +68,6 @@ class SearchGlobal extends Controller
                 return [
                     'id' => $catalogo->id,
                     'nombre' => $catalogo->nombre,
-                    'tipo' => 'catalogo',
-                    'url' => "/catalogo-activo/{$catalogo->id}"
                 ];
             });
         

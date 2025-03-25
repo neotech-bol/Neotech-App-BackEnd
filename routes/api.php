@@ -14,6 +14,7 @@ use App\Http\Controllers\ProductoModelController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RolesPermisosController;
+use App\Http\Controllers\SearchGlobal;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -189,3 +190,6 @@ Route::get('/products/{productoId}/ratings/stats', [RatingController::class, 'ge
 
 // Ruta alternativa si prefieres mantener todo bajo el prefijo 'ratings'
 Route::get('/ratings/product/{productoId}/stats', [RatingController::class, 'getProductRatingStats']);
+
+// Global search endpoint
+Route::get('/search', [SearchGlobal::class, 'search']);
