@@ -20,6 +20,7 @@ class ContactanosController extends Controller
             'correo' => 'required|email|max:255',
             'telefono' => 'required|string|max:20',
             'mensaje' => 'required|string',
+            'departamento' => 'required|string|max:50',
         ]);
         // Guarda el mensaje en la base de datos
         $item =  new contactanos();
@@ -27,6 +28,7 @@ class ContactanosController extends Controller
         $item->correo = $request->correo;
         $item->telefono = $request->telefono;
         $item->mensaje = $request->mensaje;
+        $item->departamento = $request->departamento;
         $item->save();
         return response()->json(["mensaje" => "Envio Exitoso", "datos" => $item], 200);
     }

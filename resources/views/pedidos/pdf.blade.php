@@ -482,6 +482,12 @@
                         // Determinar el precio correcto según el tipo (preventa o regular)
                         $precioAplicado = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
                         $subtotal = $precioAplicado * $producto->pivot->cantidad;
+                        
+                        // Obtener los valores de cantidades mínimas y máximas como strings
+                        $cantidadMinima = $producto->cantidad_minima ?? $producto->pivot->cantidad_minima ?? 'N/A';
+                        $cantidadMaxima = $producto->cantidad_maxima ?? $producto->pivot->cantidad_maxima ?? 'N/A';
+                        $cantidadMinimaPreventa = $producto->cantidad_minima_preventa ?? $producto->pivot->cantidad_minima_preventa ?? 'N/A';
+                        $cantidadMaximaPreventa = $producto->cantidad_maxima_preventa ?? $producto->pivot->cantidad_maxima_preventa ?? 'N/A';
                     @endphp
                     <tr>
                         <td>
@@ -531,10 +537,10 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Rango de cantidades -->
+                                    <!-- Rango de cantidades (como strings) -->
                                     <div class="quantity-range">
                                         <span class="quantity-range-label">Rango de preventa:</span> 
-                                        {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }} unidades
+                                        {{ $cantidadMinimaPreventa }} - {{ $cantidadMaximaPreventa }} unidades
                                     </div>
                                 </div>
                             @else
@@ -552,10 +558,10 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Rango de cantidades -->
+                                    <!-- Rango de cantidades (como strings) -->
                                     <div class="quantity-range">
                                         <span class="quantity-range-label">Rango regular:</span> 
-                                        {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima ?? 'N/A' }} unidades
+                                        {{ $cantidadMinima }} - {{ $cantidadMaxima }} unidades
                                     </div>
                                 </div>
                             @endif
@@ -597,18 +603,26 @@
         <div class="section" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
             <h2 class="section-title">Información de Precios</h2>
             <div style="display: flex; gap: 10px; font-size: 8px;">
+                @php
+                    // Obtener los valores de cantidades mínimas y máximas del primer producto como strings
+                    $primerProducto = $pedido->productos->first();
+                    $cantidadMinima = $primerProducto->cantidad_minima ?? $primerProducto->pivot->cantidad_minima ?? 'N/A';
+                    $cantidadMaxima = $primerProducto->cantidad_maxima ?? $primerProducto->pivot->cantidad_maxima ?? 'N/A';
+                    $cantidadMinimaPreventa = $primerProducto->cantidad_minima_preventa ?? $primerProducto->pivot->cantidad_minima_preventa ?? 'N/A';
+                    $cantidadMaximaPreventa = $primerProducto->cantidad_maxima_preventa ?? $primerProducto->pivot->cantidad_maxima_preventa ?? 'N/A';
+                @endphp
                 <div style="flex: 1; background-color: #fffbeb; border: 1px dashed #f59e0b; padding: 3px; border-radius: 3px;">
                     <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
                     <p style="margin: 2px 0;">
                         Precio especial aplicado cuando la cantidad está entre el mínimo y máximo de preventa.
-                        <br>Rango: {{ $pedido->productos->first()->pivot->cantidad_minima_preventa ?? 'N/A' }}-{{ $pedido->productos->first()->pivot->cantidad_maxima_preventa ?? 'N/A' }} unidades.
+                        <br>Rango: {{ $cantidadMinimaPreventa }}-{{ $cantidadMaximaPreventa }} unidades.
                     </p>
                 </div>
                 <div style="flex: 1; background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 3px; border-radius: 3px;">
                     <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
                     <p style="margin: 2px 0;">
                         Precio estándar aplicado cuando la cantidad está fuera del rango de preventa.
-                        <br>Rango: {{ $pedido->productos->first()->pivot->cantidad_minima ?? 'N/A' }}-{{ $pedido->productos->first()->pivot->cantidad_maxima ?? 'N/A' }} unidades.
+                        <br>Rango: {{ $cantidadMinima }}-{{ $cantidadMaxima }} unidades.
                     </p>
                 </div>
             </div>
@@ -628,4 +642,3 @@
     </div>
 </body>
 </html>
-

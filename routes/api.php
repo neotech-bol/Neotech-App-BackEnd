@@ -85,7 +85,7 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     //categorias
     Route::get('/categorias', [CategoriaController::class, 'index']);
     Route::post('/categoria-nueva', [CategoriaController::class, 'store']);
-    Route::get('/categoria/{id}', [CategoriaController::class, 'show']);
+    Route::get('/categoria-ver/{id}', [CategoriaController::class, 'show']);
     Route::put('/categoria/{id}', [CategoriaController::class, 'update']);
     Route::delete('/categoria/{id}', [CategoriaController::class, 'destroy']);
     Route::get('/categorias-activas', [CategoriaController::class, 'indexActivos']);

@@ -27,32 +27,50 @@ class Producto extends Model
     {
         return $this->belongsTo(Categoria::class, "categoria_id");
     }
+    
     public function images()
     {
         return $this->hasMany(Image::class);
     }
+    
     public function caracteristicas()
     {
         return $this->hasMany(Caracteristica::class);
     }
+    
     public function user()
     {
         return $this->belongsTo(User::class);
     }
+    
     public function calificaciones()
     {
         return $this->hasMany(Calificacion::class);
     }
+    
     public function favorites()
     {
         return $this->hasMany(Favorite::class);
     }
+    
     public function pedidos()
     {
         return $this->belongsToMany(Pedido::class, 'pedido_producto')
-                    ->withPivot('cantidad') // Si deseas acceder a la cantidad
+                    ->withPivot(
+                        'cantidad',
+                        'modelo_id',
+                        'precio',
+                        'color',
+                        'precio_preventa',
+                        'es_preventa',
+                        'cantidad_minima',
+                        'cantidad_maxima',
+                        'cantidad_minima_preventa',
+                        'cantidad_maxima_preventa'
+                    )
                     ->withTimestamps();
     }
+    
     public function modelos()
     {
         return $this->hasMany(ModeloProducto::class);

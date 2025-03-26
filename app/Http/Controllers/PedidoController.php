@@ -248,7 +248,31 @@ class PedidoController extends Controller
                 'productos.categoria', 
                 'cupon'
             ])->findOrFail($id);
-    
+        
+            // Depuración: Imprimir los datos de la tabla pivot para verificar
+            // Comenta esta línea después de verificar los datos
+            // dd($pedido->productos->first()->pivot->toArray());
+        
+            // Asegurarse de que los datos de la tabla pivot estén disponibles en la vista
+            // Esto es crucial para mostrar las cantidades mínimas y máximas
+            foreach ($pedido->productos as $producto) {
+                // Asignar explícitamente los valores de la tabla pivot al objeto producto
+                $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+            
+                // También asegurarse de que otros campos importantes estén disponibles
+                $producto->es_preventa = $producto->pivot->es_preventa;
+                $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                    $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $producto->precio_regular = $producto->pivot->precio;
+                $producto->precio_preventa = $producto->pivot->precio_preventa;
+                $producto->color = $producto->pivot->color;
+                $producto->modelo_id = $producto->pivot->modelo_id;
+                $producto->cantidad = $producto->pivot->cantidad;
+            }
+
             // Configuración del PDF
             $pdf = Pdf::loadView('pedidos.pdf', compact('pedido'));
             $pdf->setPaper('a4', 'portrait');
@@ -263,10 +287,10 @@ class PedidoController extends Controller
                     public_path(), // Permitir acceso a archivos en public
                 ]
             ]);
-    
+
             // Determinar formato de respuesta
             $responseFormat = $request->query('format', 'binary');
-    
+
             switch ($responseFormat) {
                 case 'base64':
                     $base64 = base64_encode($pdf->output());
@@ -280,41 +304,41 @@ class PedidoController extends Controller
                         ],
                         'message' => 'PDF generado exitosamente'
                     ]);
-    
-                case 'url':
-                    // Generar nombre único para el archivo
-                    $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
-                    
-                    // Guardar el PDF en el almacenamiento
-                    Storage::disk('public')->put($filename, $pdf->output());
-                    $url = Storage::disk('public')->url($filename);
-    
-                    return response()->json([
-                        'success' => true,
-                        'data' => [
-                            'pedido_id' => $pedido->id,
-                            'filename' => 'pedido_' . $pedido->id . '.pdf',
-                            'url' => $url,
-                            'expires_at' => now()->addDay()->toIso8601String(),
-                        ],
-                        'message' => 'URL de descarga generada exitosamente'
-                    ]);
-    
-                case 'binary':
-                default:
-                    // Configurar nombre del archivo para descarga
-                    return $pdf->download('pedido_' . $pedido->id . '.pdf');
-            }
-        } catch (\Exception $e) {
-            // Registrar el error para depuración
-            \Log::error('Error al generar PDF: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al generar el PDF: ' . $e->getMessage()
-            ], 500);
+
+            case 'url':
+                // Generar nombre único para el archivo
+                $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
+                
+                // Guardar el PDF en el almacenamiento
+                Storage::disk('public')->put($filename, $pdf->output());
+                $url = Storage::disk('public')->url($filename);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'pedido_id' => $pedido->id,
+                        'filename' => 'pedido_' . $pedido->id . '.pdf',
+                        'url' => $url,
+                        'expires_at' => now()->addDay()->toIso8601String(),
+                    ],
+                    'message' => 'URL de descarga generada exitosamente'
+                ]);
+
+            case 'binary':
+            default:
+                // Configurar nombre del archivo para descarga
+                return $pdf->download('pedido_' . $pedido->id . '.pdf');
         }
+    } catch (\Exception $e) {
+        // Registrar el error para depuración
+        \Log::error('Error al generar PDF: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar el PDF: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function repetirPedido($id)
     {
@@ -387,6 +411,24 @@ class PedidoController extends Controller
                 ->where('estado', true)
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
+            foreach ($pedidos as $pedido) {
+                $pedido->productos->each(function ($producto) {
+                    $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                    $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                    $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                    $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+                    $producto->es_preventa = $producto->pivot->es_preventa;
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                        $producto->pivot->precio_preventa : $producto->pivot->precio;
+                    $producto->precio_regular = $producto->pivot->precio;
+                    $producto->precio_preventa = $producto->pivot->precio_preventa;
+                    $producto->color = $producto->pivot->color;
+                    $producto->modelo_id = $producto->pivot->modelo_id;
+                    $producto->cantidad = $producto->pivot->cantidad;
+                });
+            }
 
             // Procesar los datos para el reporte
             $fechaActual = Carbon::now()->format('d/m/Y H:i');
@@ -494,6 +536,24 @@ class PedidoController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
+            foreach ($pedidos as $pedido) {
+                $pedido->productos->each(function ($producto) {
+                    $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                    $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                    $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                    $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+                    $producto->es_preventa = $producto->pivot->es_preventa;
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                        $producto->pivot->precio_preventa : $producto->pivot->precio;
+                    $producto->precio_regular = $producto->pivot->precio;
+                    $producto->precio_preventa = $producto->pivot->precio_preventa;
+                    $producto->color = $producto->pivot->color;
+                    $producto->modelo_id = $producto->pivot->modelo_id;
+                    $producto->cantidad = $producto->pivot->cantidad;
+                });
+            }
+
             // Procesar los datos para el reporte
             $fechaActual = Carbon::now()->format('d/m/Y H:i');
             $totalPedidos = $pedidos->count();
@@ -580,13 +640,13 @@ class PedidoController extends Controller
         }
     }
     /**
- * Genera un PDF con todos los pedidos de un catálogo específico
- * 
- * @param int $catalogoId ID del catálogo
- * @param Request $request
- * @return \Illuminate\Http\Response
- */
-public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
+     * Genera un PDF con todos los pedidos de un catálogo específico
+     * 
+     * @param int $catalogoId ID del catálogo
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
     {
         try {
             // Verificar que el catálogo existe
@@ -628,6 +688,24 @@ public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
             })
             ->orderBy('created_at', 'desc')
             ->get();
+            
+            // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
+            foreach ($pedidos as $pedido) {
+                $pedido->productos->each(function ($producto) {
+                    $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                    $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                    $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                    $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+                    $producto->es_preventa = $producto->pivot->es_preventa;
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                        $producto->pivot->precio_preventa : $producto->pivot->precio;
+                    $producto->precio_regular = $producto->pivot->precio;
+                    $producto->precio_preventa = $producto->pivot->precio_preventa;
+                    $producto->color = $producto->pivot->color;
+                    $producto->modelo_id = $producto->pivot->modelo_id;
+                    $producto->cantidad = $producto->pivot->cantidad;
+                });
+            }
             
             // Filtrar pedidos que no tengan productos después del whereIn
             $pedidos = $pedidos->filter(function($pedido) {
@@ -692,6 +770,10 @@ public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
             $data = [
                 'catalogo' => $catalogo,
                 'pedidos' => $pedidos,
+                'fechaGeneracion' => $fechaActual,
+                'totalPedidos' => $totalPedidos,
+                'montoTotal' => $montoTotal,
+                'totalProductos' => $totalProductos,
                 'fechaGeneracion' => $fechaActual,
                 'totalPedidos' => $totalPedidos,
                 'montoTotal' => $montoTotal,
@@ -763,5 +845,4 @@ public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
             ], 500);
         }
     }
-
 }
