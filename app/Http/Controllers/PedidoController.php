@@ -101,7 +101,7 @@ class PedidoController extends Controller
                 'subtotal' => $pivotData->es_preventa 
                     ? $pivotData->precio_preventa * $pivotData->cantidad 
                     : $pivotData->precio * $pivotData->cantidad,
-                'imagen_principal' => $producto->imagen_principal ? asset('images/imagenes_principales' . $producto->imagen_principal) : null // Agregar la imagen principal
+                'imagen_principal' => $producto->imagen_principal ? asset("images/imagenes_principales/" . $producto->imagen_principal) : null // Agregar la imagen principal
             ];
         });
     
