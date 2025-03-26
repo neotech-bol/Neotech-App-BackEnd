@@ -271,6 +271,29 @@
             margin-top: 5px;
             border: 1px solid #eee;
         }
+        /* Nuevos estilos para tipos de precio */
+        .price-type-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            color: white;
+            margin-left: 3px;
+            vertical-align: middle;
+        }
+        .price-type-regular {
+            background-color: #3b82f6;
+        }
+        .price-type-preventa {
+            background-color: #f59e0b;
+        }
+        .quantity-range {
+            font-size: 7px;
+            color: #666;
+            margin-top: 2px;
+            display: block;
+        }
         /* Estilos para impresión */
         @media print {
             body {
@@ -296,10 +319,10 @@
     <div class="summary">
         <div class="summary-item">
             <div class="summary-value">{{ $totalPedidos }}</div>
-            <div class="summary-label">PEDIDOS {{ strtoupper($estado) }}</div>
+            <div class="summary-label">PEDIDOS {{ isset($estado) ? strtoupper($estado) : '' }}</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">${{ number_format($montoTotal, 2) }}</div>
+            <div class="summary-value">Bs {{ number_format($montoTotal, 2) }}</div>
             <div class="summary-label">MONTO TOTAL</div>
         </div>
         <div class="summary-item">
@@ -308,7 +331,7 @@
         </div>
         <div class="summary-item">
             <div class="summary-value">
-                {{ $totalPedidos > 0 ? '$' . number_format($montoTotal / $totalPedidos, 2) : '$0.00' }}
+                {{ $totalPedidos > 0 ? 'Bs ' . number_format($montoTotal / $totalPedidos, 2) : 'Bs 0.00' }}
             </div>
             <div class="summary-label">PROMEDIO</div>
         </div>
@@ -333,10 +356,10 @@
                         </div>
                         <div class="pedido-total">
                             <div class="pedido-total-label">Total</div>
-                            <div class="pedido-total-valor">${{ number_format($pedido->total_amount, 2) }}</div>
+                            <div class="pedido-total-valor">Bs {{ number_format($pedido->total_amount, 2) }}</div>
                             @if($pedido->total_to_pay && $pedido->total_to_pay != $pedido->total_amount)
                                 <div class="pedido-total-label">A Pagar</div>
-                                <div class="pedido-total-valor">${{ number_format($pedido->total_to_pay, 2) }}</div>
+                                <div class="pedido-total-valor">Bs {{ number_format($pedido->total_to_pay, 2) }}</div>
                             @endif
                         </div>
                     </div>
@@ -344,8 +367,8 @@
                     <table class="productos-table compact-table">
                         <thead>
                             <tr>
-                                <th width="40%">Producto</th>
-                                <th width="20%">Detalles</th>
+                                <th width="35%">Producto</th>
+                                <th width="25%">Detalles</th>
                                 <th width="13%">Precio</th>
                                 <th width="7%">Cant</th>
                                 <th width="20%">Subtotal</th>
@@ -353,9 +376,21 @@
                         </thead>
                         <tbody>
                             @foreach($pedido->productos as $producto)
+                                @php
+                                    // Determinar el precio correcto según el tipo (preventa o regular)
+                                    $precioAplicado = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                                    $subtotal = $precioAplicado * $producto->pivot->cantidad;
+                                @endphp
                                 <tr>
                                     <td>
-                                        <div class="producto-nombre">{{ $producto->nombre }}</div>
+                                        <div class="producto-nombre">
+                                            {{ $producto->nombre }}
+                                            @if($producto->pivot->es_preventa)
+                                                <span class="price-type-badge price-type-preventa">PREVENTA</span>
+                                            @else
+                                                <span class="price-type-badge price-type-regular">REGULAR</span>
+                                            @endif
+                                        </div>
                                         <div class="producto-categoria">
                                             {{ $producto->categoria->nombre ?? 'Sin categoría' }}
                                         </div>
@@ -381,15 +416,35 @@
                                                 </div>
                                             @endif
                                         </div>
+                                        
+                                        <!-- Rangos de cantidad -->
+                                        @if($producto->pivot->es_preventa)
+                                            <span class="quantity-range">
+                                                Rango preventa: {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }}
+                                            </span>
+                                        @else
+                                            <span class="quantity-range">
+                                                Rango regular: {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima ?? 'N/A' }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="producto-precio">
-                                        ${{ number_format($producto->pivot->precio, 2) }}
+                                        Bs {{ number_format($precioAplicado, 2) }}
+                                        @if($producto->pivot->es_preventa && $producto->pivot->precio)
+                                            <div style="font-size: 7px; color: #888; text-decoration: line-through;">
+                                                Reg: Bs {{ number_format($producto->pivot->precio, 2) }}
+                                            </div>
+                                        @elseif(!$producto->pivot->es_preventa && $producto->pivot->precio_preventa)
+                                            <div style="font-size: 7px; color: #888; text-decoration: line-through;">
+                                                Pre: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="producto-cantidad">
                                         {{ $producto->pivot->cantidad }}
                                     </td>
                                     <td class="producto-subtotal">
-                                        ${{ number_format($producto->pivot->precio * $producto->pivot->cantidad, 2) }}
+                                        Bs {{ number_format($subtotal, 2) }}
                                     </td>
                                 </tr>
                             @endforeach
@@ -399,7 +454,9 @@
                     <div class="pedido-resumen">
                         <div class="pedido-metodo">
                             <span class="pedido-metodo-label">Método:</span>
-                            <span class="pedido-metodo-valor">{{ $pedido->payment_method }}</span>
+                            <span class="pedido-metodo-valor">
+                                {{ $pedido->payment_method == 'in-person' ? 'En persona' : ($pedido->payment_method == 'qr' ? 'Pago QR' : ucfirst($pedido->payment_method)) }}
+                            </span>
                         </div>
                         
                         @if($pedido->cupon)
@@ -432,13 +489,14 @@
         @else
             <div class="no-pedidos">
                 <div class="no-pedidos-icon">📭</div>
-                <p>No hay pedidos {{ $estado }} para mostrar.</p>
+                <p>No hay pedidos {{ isset($estado) ? $estado : '' }} para mostrar.</p>
             </div>
         @endif
     </div>
     
     <div class="footer">
-        <p>© {{ date('Y') }} Tu Empresa - Todos los derechos reservados | Reporte oficial de pedidos {{ $estado }}</p>
+        <p>© {{ date('Y') }} Mi Empresa - Todos los derechos reservados | Reporte oficial de pedidos {{ isset($estado) ? $estado : '' }}</p>
     </div>
 </body>
 </html>
+

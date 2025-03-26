@@ -19,9 +19,12 @@ return new class extends Migration
             $table->decimal('precio', 10, 2)->nullable(); // Precio regular al momento de la compra
             $table->decimal('precio_preventa', 10, 2)->nullable(); // Precio de preventa al momento de la compra
             $table->boolean('es_preventa')->default(false); // Indica si la compra fue con precio de preventa
-            $table->integer('cantidad')->default(1);
+            $table->integer('cantidad')->nullable();
             $table->string('color')->nullable(); // Opcional: si también quieres guardar el color
-
+            $table->string('cantidad_minima')->nullable();
+            $table->string('cantidad_maxima')->nullable();
+            $table->string('cantidad_minima_preventa')->nullable();
+            $table->string('cantidad_maxima_preventa')->nullable();
             // futuro
             $table->decimal('subtotal', 10, 2)->nullable(); // Subtotal para este producto
             $table->decimal('descuento', 10, 2)->nullable(); // Descuento aplicado a este producto

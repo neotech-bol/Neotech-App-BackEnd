@@ -98,6 +98,10 @@ class PedidoController extends Controller
                 'precio_preventa_compra' => $pivotData->precio_preventa, // Precio de preventa al momento de la compra
                 'es_preventa' => $pivotData->es_preventa, // Indica si se compró con precio de preventa
                 'color' => $pivotData->color,
+                'cantidad_minima' => $pivotData->cantidad_minima,
+                'cantidad_maxima' => $pivotData->cantidad_maxima,
+                'cantidad_minima_preventa' => $pivotData->cantidad_minima_preventa,
+                'cantidad_maxima_preventa' => $pivotData->cantidad_maxima_preventa,
                 'subtotal' => $pivotData->es_preventa 
                     ? $pivotData->precio_preventa * $pivotData->cantidad 
                     : $pivotData->precio * $pivotData->cantidad,
@@ -124,6 +128,10 @@ class PedidoController extends Controller
             'productos.*.precio_preventa' => 'nullable|numeric',
             'productos.*.es_preventa' => 'nullable|boolean',
             'productos.*.color' => 'nullable|string',
+            'productos.*.cantidad_minima' => 'nullable|string',
+            'productos.*.cantidad_maxima' => 'nullable|string',
+            'productos.*.cantidad_minima_preventa' => 'nullable|string',
+            'productos.*.cantidad_maxima_preventa' => 'nullable|string',
             'cupon_id' => 'nullable|exists:cupones,id',
             'payment_method' => 'required|string',
             'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -157,7 +165,11 @@ class PedidoController extends Controller
                 'precio' => $producto['precio'],
                 'precio_preventa' => $producto['precio_preventa'] ?? null,
                 'es_preventa' => $producto['es_preventa'] ?? false,
-                'color' => $producto['color'] ?? null
+                'color' => $producto['color'] ?? null,
+                'cantidad_minima' => $producto['cantidad_minima'] ?? null,
+                'cantidad_maxima' => $producto['cantidad_maxima'] ?? null,
+                'cantidad_minima_preventa' => $producto['cantidad_minima_preventa'] ?? null,
+                'cantidad_maxima_preventa' => $producto['cantidad_maxima_preventa'] ?? null
             ]);
         }
 
@@ -177,6 +189,12 @@ class PedidoController extends Controller
             'productos.*.precio' => 'sometimes|required|numeric',
             'productos.*.precio_preventa' => 'nullable|numeric',
             'productos.*.es_preventa' => 'nullable|boolean',
+            'productos.*.modelo_id' => 'nullable|exists:modelo_productos,id',
+            'productos.*.color' => 'nullable|string',
+            'productos.*.cantidad_minima' => 'nullable|string',
+            'productos.*.cantidad_maxima' => 'nullable|string',
+            'productos.*.cantidad_minima_preventa' => 'nullable|string',
+            'productos.*.cantidad_maxima_preventa' => 'nullable|string',
         ]);
 
         $pedido->update($request->only('user_id', 'monto_total'));
@@ -190,14 +208,17 @@ class PedidoController extends Controller
                     'precio_preventa' => $producto['precio_preventa'] ?? null,
                     'es_preventa' => $producto['es_preventa'] ?? false,
                     'modelo_id' => $producto['modelo_id'] ?? null,
-                    'color' => $producto['color'] ?? null
+                    'color' => $producto['color'] ?? null,
+                    'cantidad_minima' => $producto['cantidad_minima'] ?? null,
+                    'cantidad_maxima' => $producto['cantidad_maxima'] ?? null,
+                    'cantidad_minima_preventa' => $producto['cantidad_minima_preventa'] ?? null,
+                    'cantidad_maxima_preventa' => $producto['cantidad_maxima_preventa'] ?? null
                 ]);
             }
         }
 
         return response()->json($pedido);
     }
-
     public function pedidoCompletado($id)
     {
         $pedido = Pedido::findOrFail($id);
@@ -317,12 +338,17 @@ class PedidoController extends Controller
                 'precio' => $producto->pivot->precio,
                 'precio_preventa' => $producto->pivot->precio_preventa,
                 'es_preventa' => $producto->pivot->es_preventa,
-                'color' => $producto->pivot->color
+                'color' => $producto->pivot->color,
+                'cantidad_minima' => $producto->pivot->cantidad_minima,
+                'cantidad_maxima' => $producto->pivot->cantidad_maxima,
+                'cantidad_minima_preventa' => $producto->pivot->cantidad_minima_preventa,
+                'cantidad_maxima_preventa' => $producto->pivot->cantidad_maxima_preventa
             ]);
         }
 
         return response()->json(['message' => 'Pedido repetido con éxito.', 'nuevo_pedido' => $nuevoPedido], 201);
     }
+
 
     public function totalPedidosEnProceso()
     {
@@ -561,182 +587,181 @@ class PedidoController extends Controller
  * @return \Illuminate\Http\Response
  */
 public function generarPdfPedidosPorCatalogo($catalogoId, Request $request)
-{
-    try {
-        // Verificar que el catálogo existe
-        $catalogo = \App\Models\Catalogo::findOrFail($catalogoId);
-        
-        // Obtener todas las categorías del catálogo
-        $categorias = \App\Models\Categoria::where('catalogo_id', $catalogoId)->pluck('id');
-        
-        if ($categorias->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'El catálogo no tiene categorías asociadas'
-            ], 404);
-        }
-        
-        // Obtener todos los productos de las categorías del catálogo
-        $productosIds = \App\Models\Producto::whereIn('categoria_id', $categorias)->pluck('id');
-        
-        if ($productosIds->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No hay productos asociados a las categorías de este catálogo'
-            ], 404);
-        }
-        
-        // Cargar pedidos que contengan productos del catálogo
-        $pedidos = Pedido::with([
-            'user',
-            'productos' => function($query) use ($productosIds) {
+    {
+        try {
+            // Verificar que el catálogo existe
+            $catalogo = \App\Models\Catalogo::findOrFail($catalogoId);
+            
+            // Obtener todas las categorías del catálogo
+            $categorias = \App\Models\Categoria::where('catalogo_id', $catalogoId)->pluck('id');
+            
+            if ($categorias->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El catálogo no tiene categorías asociadas'
+                ], 404);
+            }
+            
+            // Obtener todos los productos de las categorías del catálogo
+            $productosIds = \App\Models\Producto::whereIn('categoria_id', $categorias)->pluck('id');
+            
+            if ($productosIds->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay productos asociados a las categorías de este catálogo'
+                ], 404);
+            }
+            
+            // Cargar pedidos que contengan productos del catálogo
+            $pedidos = Pedido::with([
+                'user',
+                'productos' => function($query) use ($productosIds) {
+                    $query->whereIn('productos.id', $productosIds);
+                },
+                'productos.modelos',
+                'productos.categoria',
+                'productos.categoria.catalogo',
+                'cupon'
+            ])
+            ->whereHas('productos', function($query) use ($productosIds) {
                 $query->whereIn('productos.id', $productosIds);
-            },
-            'productos.modelos',
-            'productos.categoria',
-            'productos.categoria.catalogo',
-            'cupon'
-        ])
-        ->whereHas('productos', function($query) use ($productosIds) {
-            $query->whereIn('productos.id', $productosIds);
-        })
-        ->orderBy('created_at', 'desc')
-        ->get();
-        
-        // Filtrar pedidos que no tengan productos después del whereIn
-        $pedidos = $pedidos->filter(function($pedido) {
-            return $pedido->productos->isNotEmpty();
-        });
-        
-        if ($pedidos->isEmpty()) {
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+            // Filtrar pedidos que no tengan productos después del whereIn
+            $pedidos = $pedidos->filter(function($pedido) {
+                return $pedido->productos->isNotEmpty();
+            });
+            
+            if ($pedidos->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay pedidos con productos de este catálogo'
+                ], 404);
+            }
+            
+            // Procesar los datos para el reporte
+            $fechaActual = Carbon::now()->format('d/m/Y H:i');
+            $totalPedidos = $pedidos->count();
+            
+            // Calcular el monto total y productos vendidos solo para los productos del catálogo
+            $montoTotal = 0;
+            $totalProductos = 0;
+            
+            foreach ($pedidos as $pedido) {
+                foreach ($pedido->productos as $producto) {
+                    $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                    $subtotal = $precioUnitario * $producto->pivot->cantidad;
+                    $montoTotal += $subtotal;
+                    $totalProductos += $producto->pivot->cantidad;
+                }
+            }
+            
+            // Agrupar productos por categoría para el reporte
+            $productosPorCategoria = [];
+            foreach ($pedidos as $pedido) {
+                foreach ($pedido->productos as $producto) {
+                    $categoriaId = $producto->categoria_id;
+                    $categoriaNombre = $producto->categoria->nombre;
+                    
+                    if (!isset($productosPorCategoria[$categoriaId])) {
+                        $productosPorCategoria[$categoriaId] = [
+                            'nombre' => $categoriaNombre,
+                            'productos' => []
+                        ];
+                    }
+                    
+                    if (!isset($productosPorCategoria[$categoriaId]['productos'][$producto->id])) {
+                        $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
+                            'nombre' => $producto->nombre,
+                            'cantidad' => 0,
+                            'monto' => 0
+                        ];
+                    }
+                    
+                    $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                    $subtotal = $precioUnitario * $producto->pivot->cantidad;
+                    
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
+                }
+            }
+            
+            // Preparar datos para la vista
+            $data = [
+                'catalogo' => $catalogo,
+                'pedidos' => $pedidos,
+                'fechaGeneracion' => $fechaActual,
+                'totalPedidos' => $totalPedidos,
+                'montoTotal' => $montoTotal,
+                'totalProductos' => $totalProductos,
+                'productosPorCategoria' => $productosPorCategoria,
+                'titulo' => 'Pedidos del Catálogo: ' . $catalogo->nombre,
+            ];
+            
+            // Generar el PDF
+            $pdf = PDF::loadView('pedidos.reporte_catalogo', $data);
+            $pdf->setPaper('a4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+            
+            // Determinar el formato de respuesta
+            $responseFormat = $request->query('format', 'binary');
+            $filename = 'pedidos_catalogo_' . $catalogo->id . '_' . Carbon::now()->format('dmY_His') . '.pdf';
+            
+            switch ($responseFormat) {
+                case 'base64':
+                    $base64 = base64_encode($pdf->output());
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'catalogo_id' => $catalogo->id,
+                            'catalogo_nombre' => $catalogo->nombre,
+                            'filename' => $filename,
+                            'content_type' => 'application/pdf',
+                            'base64' => $base64,
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'PDF de pedidos del catálogo generado exitosamente'
+                    ]);
+                    
+                case 'url':
+                    $path = 'pedidos/' . $filename;
+                    Storage::disk('public')->put($path, $pdf->output());
+                    $url = Storage::disk('public')->url($path);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'catalogo_id' => $catalogo->id,
+                            'catalogo_nombre' => $catalogo->nombre,
+                            'filename' => $filename,
+                            'url' => $url,
+                            'expires_at' => now()->addDay()->toIso8601String(),
+                            'total_pedidos' => $totalPedidos,
+                            'monto_total' => $montoTotal,
+                            'total_productos' => $totalProductos
+                        ],
+                        'message' => 'URL de descarga generada exitosamente'
+                    ]);
+                    
+                case 'binary':
+                default:
+                    return $pdf->download($filename);
+            }
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'No hay pedidos con productos de este catálogo'
-            ], 404);
+                'message' => 'Error al generar el PDF: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
         }
-        
-        // Procesar los datos para el reporte
-        $fechaActual = Carbon::now()->format('d/m/Y H:i');
-        $totalPedidos = $pedidos->count();
-        
-        // Calcular el monto total y productos vendidos solo para los productos del catálogo
-        $montoTotal = 0;
-        $totalProductos = 0;
-        
-        foreach ($pedidos as $pedido) {
-            foreach ($pedido->productos as $producto) {
-                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
-                $subtotal = $precioUnitario * $producto->pivot->cantidad;
-                $montoTotal += $subtotal;
-                $totalProductos += $producto->pivot->cantidad;
-            }
-        }
-        
-        // Agrupar productos por categoría para el reporte
-        $productosPorCategoria = [];
-        foreach ($pedidos as $pedido) {
-            foreach ($pedido->productos as $producto) {
-                $categoriaId = $producto->categoria_id;
-                $categoriaNombre = $producto->categoria->nombre;
-                
-                if (!isset($productosPorCategoria[$categoriaId])) {
-                    $productosPorCategoria[$categoriaId] = [
-                        'nombre' => $categoriaNombre,
-                        'productos' => []
-                    ];
-                }
-                
-                if (!isset($productosPorCategoria[$categoriaId]['productos'][$producto->id])) {
-                    $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
-                        'nombre' => $producto->nombre,
-                        'cantidad' => 0,
-                        'monto' => 0
-                    ];
-                }
-                
-                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
-                $subtotal = $precioUnitario * $producto->pivot->cantidad;
-                
-                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
-                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
-            }
-        }
-        
-        // Preparar datos para la vista
-        $data = [
-            'catalogo' => $catalogo,
-            'pedidos' => $pedidos,
-            'fechaGeneracion' => $fechaActual,
-            'totalPedidos' => $totalPedidos,
-            'montoTotal' => $montoTotal,
-            'totalProductos' => $totalProductos,
-            'productosPorCategoria' => $productosPorCategoria,
-            'titulo' => 'Pedidos del Catálogo: ' . $catalogo->nombre,
-        ];
-        
-        // Generar el PDF
-        $pdf = PDF::loadView('pedidos.reporte_catalogo', $data);
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isRemoteEnabled' => true,
-            'defaultFont' => 'sans-serif',
-        ]);
-        
-        // Determinar el formato de respuesta
-        $responseFormat = $request->query('format', 'binary');
-        $filename = 'pedidos_catalogo_' . $catalogo->id . '_' . Carbon::now()->format('dmY_His') . '.pdf';
-        
-        switch ($responseFormat) {
-            case 'base64':
-                $base64 = base64_encode($pdf->output());
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'catalogo_id' => $catalogo->id,
-                        'catalogo_nombre' => $catalogo->nombre,
-                        'filename' => $filename,
-                        'content_type' => 'application/pdf',
-                        'base64' => $base64,
-                        'total_pedidos' => $totalPedidos,
-                        'monto_total' => $montoTotal,
-                        'total_productos' => $totalProductos
-                    ],
-                    'message' => 'PDF de pedidos del catálogo generado exitosamente'
-                ]);
-                
-            case 'url':
-                $path = 'pedidos/' . $filename;
-                Storage::disk('public')->put($path, $pdf->output());
-                $url = Storage::disk('public')->url($path);
-                
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'catalogo_id' => $catalogo->id,
-                        'catalogo_nombre' => $catalogo->nombre,
-                        'filename' => $filename,
-                        'url' => $url,
-                        'expires_at' => now()->addDay()->toIso8601String(),
-                        'total_pedidos' => $totalPedidos,
-                        'monto_total' => $montoTotal,
-                        'total_productos' => $totalProductos
-                    ],
-                    'message' => 'URL de descarga generada exitosamente'
-                ]);
-                
-            case 'binary':
-            default:
-                return $pdf->download($filename);
-        }
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al generar el PDF: ' . $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ], 500);
     }
-}
-
 
 }

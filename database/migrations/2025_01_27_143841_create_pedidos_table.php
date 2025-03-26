@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('total_amount', 10, 2)->nullable();
             $table->decimal('total_to_pay', 10, 2)->nullable();
             $table->decimal('pending', 10, 2)->nullable();
-            $table->string('estado')->default('pendiente'); // Estado del pedido
+            $table->string('estado')->default(false); // Estado del pedido
             $table->string('payment_method')->nullable(); // Método de pago
             $table->string('voucher')->nullable(); // Comprobante (voucher)
             

@@ -90,6 +90,45 @@
         .page-break {
             page-break-after: always;
         }
+        .price-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            margin-left: 5px;
+        }
+        .price-regular {
+            background-color: #28a745;
+        }
+        .price-preventa {
+            background-color: #007bff;
+        }
+        .quantity-range {
+            font-size: 10px;
+            color: #666;
+            display: block;
+            margin-top: 3px;
+        }
+        .model-info {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 11px;
+        }
+        .color-info {
+            display: inline-block;
+            margin-left: 5px;
+            font-size: 11px;
+        }
+        .color-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 3px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -172,6 +211,7 @@
                     <tr>
                         <th>Producto</th>
                         <th>Categoría</th>
+                        <th>Detalles</th>
                         <th>Cantidad</th>
                         <th>Precio</th>
                         <th>Subtotal</th>
@@ -180,8 +220,38 @@
                 <tbody>
                     @foreach($pedido->productos as $producto)
                         <tr>
-                            <td>{{ $producto->nombre }}</td>
+                            <td>
+                                {{ $producto->nombre }}
+                                @if($producto->pivot->modelo_id)
+                                    <span class="model-info">
+                                        Modelo: {{ optional($producto->modelos->where('id', $producto->pivot->modelo_id)->first())->nombre ?? 'N/A' }}
+                                    </span>
+                                @endif
+                            </td>
                             <td>{{ $producto->categoria->nombre }}</td>
+                            <td>
+                                <span class="price-type {{ $producto->pivot->es_preventa ? 'price-preventa' : 'price-regular' }}">
+                                    {{ $producto->pivot->es_preventa ? 'Preventa' : 'Regular' }}
+                                </span>
+                                
+                                @if($producto->pivot->color)
+                                    <span class="color-info">
+                                        <span class="color-dot" style="background-color: {{ $producto->pivot->color }};"></span>
+                                        {{ $producto->pivot->color }}
+                                    </span>
+                                @endif
+                                
+                                <span class="quantity-range">
+                                    Rango: 
+                                    @if($producto->pivot->es_preventa)
+                                        {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - 
+                                        {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }}
+                                    @else
+                                        {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - 
+                                        {{ $producto->pivot->cantidad_maxima ?? 'N/A' }}
+                                    @endif
+                                </span>
+                            </td>
                             <td>{{ $producto->pivot->cantidad }}</td>
                             <td>Bs. {{ number_format($producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio, 2) }}</td>
                             <td>Bs. {{ number_format(($producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio) * $producto->pivot->cantidad, 2) }}</td>
@@ -190,16 +260,16 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <th colspan="4" style="text-align: right;">Total:</th>
+                        <th colspan="5" style="text-align: right;">Total:</th>
                         <th>Bs. {{ number_format($pedido->total_amount, 2) }}</th>
                     </tr>
                     @if($pedido->cupon)
                         <tr>
-                            <th colspan="4" style="text-align: right;">Descuento (Cupón: {{ $pedido->cupon->codigo }}):</th>
+                            <th colspan="5" style="text-align: right;">Descuento (Cupón: {{ $pedido->cupon->codigo }}):</th>
                             <th>Bs. {{ number_format($pedido->total_amount - $pedido->total_to_pay, 2) }}</th>
                         </tr>
                         <tr>
-                            <th colspan="4" style="text-align: right;">Total a pagar:</th>
+                            <th colspan="5" style="text-align: right;">Total a pagar:</th>
                             <th>Bs. {{ number_format($pedido->total_to_pay, 2) }}</th>
                         </tr>
                     @endif

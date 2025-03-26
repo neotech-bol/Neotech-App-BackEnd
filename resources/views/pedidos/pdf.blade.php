@@ -312,6 +312,31 @@
             text-decoration: line-through;
         }
         
+        /* Nuevos estilos para rangos de cantidad */
+        .quantity-range {
+            margin-top: 2px;
+            padding: 1px 3px;
+            background-color: #f3f4f6;
+            border-radius: 2px;
+            font-size: 6.5px;
+            color: #4b5563;
+        }
+        
+        .quantity-range-label {
+            font-weight: bold;
+            color: #4b5563;
+        }
+        
+        .color-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 3px;
+            vertical-align: middle;
+            border: 1px solid #e5e7eb;
+        }
+        
         /* Ajustes de página */
         @page {
             margin: 0.3cm;
@@ -477,7 +502,14 @@
                                 N/A
                             @endif
                         </td>
-                        <td>{{ $producto->pivot->color ?? 'N/A' }}</td>
+                        <td>
+                            @if($producto->pivot->color)
+                                <span class="color-dot" style="background-color: {{ $producto->pivot->color }};"></span>
+                                {{ $producto->pivot->color }}
+                            @else
+                                N/A
+                            @endif
+                        </td>
                         <td align="center">{{ $producto->pivot->cantidad }}</td>
                         <td align="right">
                             <strong>Bs {{ number_format($precioAplicado, 2) }}</strong>
@@ -500,8 +532,9 @@
                                     </div>
                                     
                                     <!-- Rango de cantidades -->
-                                    <div style="margin-top: 2px;">
-                                        <div>Rango de preventa: {{ $producto->pivot->cantidad_minima_preventa ?? 3 }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 5 }} unidades</div>
+                                    <div class="quantity-range">
+                                        <span class="quantity-range-label">Rango de preventa:</span> 
+                                        {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }} unidades
                                     </div>
                                 </div>
                             @else
@@ -520,8 +553,9 @@
                                     </div>
                                     
                                     <!-- Rango de cantidades -->
-                                    <div style="margin-top: 2px;">
-                                        <div>Rango regular: {{ $producto->pivot->cantidad_minima ?? 1 }} - {{ $producto->pivot->cantidad_maxima ?? 999 }} unidades</div>
+                                    <div class="quantity-range">
+                                        <span class="quantity-range-label">Rango regular:</span> 
+                                        {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima ?? 'N/A' }} unidades
                                     </div>
                                 </div>
                             @endif
@@ -567,14 +601,14 @@
                     <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
                     <p style="margin: 2px 0;">
                         Precio especial aplicado cuando la cantidad está entre el mínimo y máximo de preventa.
-                        <br>Rango típico: 3-5 unidades.
+                        <br>Rango: {{ $pedido->productos->first()->pivot->cantidad_minima_preventa ?? 'N/A' }}-{{ $pedido->productos->first()->pivot->cantidad_maxima_preventa ?? 'N/A' }} unidades.
                     </p>
                 </div>
                 <div style="flex: 1; background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 3px; border-radius: 3px;">
                     <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
                     <p style="margin: 2px 0;">
                         Precio estándar aplicado cuando la cantidad está fuera del rango de preventa.
-                        <br>Rango típico: 1+ unidades.
+                        <br>Rango: {{ $pedido->productos->first()->pivot->cantidad_minima ?? 'N/A' }}-{{ $pedido->productos->first()->pivot->cantidad_maxima ?? 'N/A' }} unidades.
                     </p>
                 </div>
             </div>
@@ -588,9 +622,10 @@
         <!-- Pie de página -->
         <div class="footer">
             <p>Este documento es un comprobante oficial de su pedido.</p>
-            <p>Para consultas: +591 XXXXXXXX | <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e68f888089a68b8f838b9694839587c885898b">[email&#160;protected]</a> | www.miempresa.com</p>
+            <p>Para consultas: +591 XXXXXXXX | info@miempresa.com | www.miempresa.com</p>
             <p>© {{ date('Y') }} Mi Empresa. Todos los derechos reservados.</p>
         </div>
     </div>
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
+</body>
 </html>
+
