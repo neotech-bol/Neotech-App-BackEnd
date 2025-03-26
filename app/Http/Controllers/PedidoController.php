@@ -78,14 +78,14 @@ class PedidoController extends Controller
     public function show($id)
     {
         $pedido = Pedido::with(['user', 'productos.modelos', 'cupon'])->findOrFail($id);
-
+    
         if ($pedido->voucher) {
             $pedido->voucher = asset('vouchers/' . $pedido->voucher);
         }
-
+    
         $pedido->productos = $pedido->productos->map(function ($producto) {
             $pivotData = $producto->pivot;
-
+    
             return [
                 'id' => $producto->id,
                 'nombre' => $producto->nombre,
@@ -100,10 +100,11 @@ class PedidoController extends Controller
                 'color' => $pivotData->color,
                 'subtotal' => $pivotData->es_preventa 
                     ? $pivotData->precio_preventa * $pivotData->cantidad 
-                    : $pivotData->precio * $pivotData->cantidad
+                    : $pivotData->precio * $pivotData->cantidad,
+                'imagen_principal' => $producto->imagen_principal ? asset('images/imagenes_principales' . $producto->imagen_principal) : null // Agregar la imagen principal
             ];
         });
-
+    
         return response()->json($pedido);
     }
 
