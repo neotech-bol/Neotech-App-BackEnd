@@ -15,6 +15,7 @@ use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RolesPermisosController;
 use App\Http\Controllers\SearchGlobal;
+use App\Http\Controllers\TestimoniosController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -161,6 +162,14 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     });
     //Modelos Productos all
     Route::get('/modelos-productos', [ProductoModelController::class, 'index']);
+
+
+    //testimonios
+    Route::get('/testimonios', [TestimoniosController::class, 'index']);
+    Route::post('/testimonio-nuevo-personal', [TestimoniosController::class,'store']);
+    Route::get('/testimonio/{id}', [TestimoniosController::class,'show']);
+    Route::put('/testimonio/{id}', [TestimoniosController::class, 'update']);
+    Route::put('/testimonio/{id}/estado', [TestimoniosController::class,'cambiarEstado']);
 });
 
 //Catalogos activos
@@ -184,8 +193,9 @@ Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoAct
 
 
 
-
-
+//testimonios 
+Route::post('/testimonio-nuevo', [TestimoniosController::class, 'store']);
+Route::get('/testimonios-activos', [TestimoniosController::class, 'indexActivos']);
 
 //user autenticado 
 Route::get('/usuario-autenticado', [UserController::class, 'getAuthenticatedUser']);
