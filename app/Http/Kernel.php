@@ -42,7 +42,7 @@ class Kernel extends HttpKernel
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\ActivateUser ::class, // Agrega tu middleware aquí
+            \App\Http\Middleware\ActivateUser::class, // Agrega tu middleware aquí
             'throttle:120,1', // Permite 120 solicitudes por minuto por usuario
         ],
     ];
@@ -66,5 +66,10 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        // Otros middlewares...
+        'role' => \App\Http\Middleware\CheckRole::class,
+        'permission' => \App\Http\Middleware\CheckPermission::class,
+        'any.permission' => \App\Http\Middleware\CheckAnyPermission::class,
+        'role.permission' => \App\Http\Middleware\CheckRoleAndPermission::class,
     ];
 }
