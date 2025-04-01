@@ -6,6 +6,7 @@ use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CatalogoHistorialController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\CitasController;
 use App\Http\Controllers\ContactanosController;
 use App\Http\Controllers\CuponController;
 use App\Http\Controllers\favoriteController;
@@ -170,6 +171,14 @@ Route::group(["middleware" => "auth:sanctum"], function () {
     Route::get('/testimonio/{id}', [TestimoniosController::class,'show']);
     Route::put('/testimonio/{id}', [TestimoniosController::class, 'update']);
     Route::put('/testimonio/{id}/estado', [TestimoniosController::class,'cambiarEstado']);
+
+    //citas
+    Route::get('/citas', [CitasController::class, 'index']);
+    Route::post('/cita-nueva', [CitasController::class,'store']);
+    Route::get('/cita-ver/{id}', [CitasController::class,'show']);
+    Route::put('/cita/{id}', [CitasController::class, 'update']);
+    Route::put('/cita/{id}/estado', [CitasController::class,'cambiarEstado']);
+    Route::delete('/cita/{id}', [CitasController::class, 'destroy']);
 });
 
 //Catalogos activos
@@ -191,7 +200,7 @@ Route::get('/catalogos-activos-ids', [CatalogoController::class, 'getActiveCatal
 Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoActive']);
 
 
-
+Route::post('/cita-nueva-user', [CitasController::class,'store']);
 
 //testimonios 
 Route::post('/testimonio-nuevo', [TestimoniosController::class, 'store']);
