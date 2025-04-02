@@ -14,15 +14,23 @@ class favoriteController extends Controller
     {
         // Obtener el usuario autenticado
         $user = auth()->user();
-    
-        // Obtener los favoritos del usuario, incluyendo los productos relacionados
-        $favorites = $user->favorites()->with('producto.images')->get();
-    
+        
+        // Obtener los favoritos del usuario, incluyendo los productos relacionados con sus categorías y catálogos
+        $favorites = $user->favorites()
+            ->with(['producto.images', 'producto.categoria.catalogo'])
+            ->whereHas('producto.categoria', function ($query) {
+                $query->where('estado', true)
+                    ->whereHas('catalogo', function ($query) {
+                        $query->where('estado', true);
+                    });
+            })
+            ->get();
+        
         // Modificar los favoritos para incluir la URL completa de las imágenes
         $formattedFavorites = $favorites->transform(function ($favorite) {
             // Obtener el producto relacionado
             $producto = $favorite->producto;
-    
+            
             // Transformar las imágenes del producto
             if ($producto && $producto->images) {
                 $producto->images->transform(function ($image) {
@@ -30,18 +38,18 @@ class favoriteController extends Controller
                     return $image;
                 });
             }
-    
+            
             // Modificar la imagen principal para incluir la URL completa
             if ($producto && $producto->imagen_principal) {
                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Cambia la ruta según sea necesario
             }
-    
+            
             return [
                 'id' => $favorite->id,
                 'producto' => $producto,
             ];
         });
-    
+        
         // Retornar la respuesta en formato JSON
         return response()->json($formattedFavorites);
     }
