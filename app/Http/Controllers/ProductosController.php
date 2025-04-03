@@ -17,26 +17,26 @@ class ProductosController extends Controller
     {
         // Start with a base query
         $query = Producto::with('images', 'categoria', 'user:id,nombre,apellido', 'caracteristicas', 'modelos');
-        
+
         // Filter by category if provided
         if ($request->has('categoria_id') && $request->categoria_id != '') {
             $query->where('categoria_id', $request->categoria_id);
         }
-        
+
         // Search by product name if provided
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('nombre', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('descripcion', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('descripcion', 'LIKE', "%{$searchTerm}%");
             });
         }
-        
+
         // Paginate the results (10 items per page)
         $products = $query->paginate(10);
-        
+
         return response()->json([
-            "mensaje" => "Productos cargados correctamente", 
+            "mensaje" => "Productos cargados correctamente",
             "datos" => $products->items(),
             "pagination" => [
                 "total" => $products->total(),
@@ -65,7 +65,7 @@ class ProductosController extends Controller
             "images.*" => "image|mimes:jpeg,png,jpg,gif,webp|max:2048",
             'caracteristicas' => "required|array",
         ]);
-    
+
         DB::beginTransaction();
         try {
             // Crear el producto con precio_preventa
@@ -81,7 +81,7 @@ class ProductosController extends Controller
             $item->cantidad_minima_preventa = $request->cantidad_minima_preventa;
             $item->cantidad_maxima_preventa = $request->cantidad_maxima_preventa;
             $item->cantidad = 0;
-    
+
             if ($request->file('imagen_principal')) {
                 $imagen_principal = $request->file('imagen_principal');
                 $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
@@ -89,18 +89,18 @@ class ProductosController extends Controller
                 $item->imagen_principal = $nombreImagen;
             }
             $item->save();
-    
+
             // Agregar modelos al producto (ahora opcional)
             if ($request->has('modelos') && is_array($request->modelos)) {
                 foreach ($request->modelos as $modeloData) {
                     if (is_string($modeloData)) {
                         $modeloData = json_decode($modeloData, true);
                     }
-    
+
                     if (!is_array($modeloData)) {
                         throw new \Exception("Datos de modelo inválidos");
                     }
-    
+
                     ModeloProducto::create([
                         'nombre' => $modeloData['nombre'],
                         'precio' => $modeloData['precio'],
@@ -113,15 +113,15 @@ class ProductosController extends Controller
                     ]);
                 }
             }
-    
+
             // Agregar imágenes al producto (mantén esta parte igual)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $index => $imageData) {
                     $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
                     $imageData->move("images/productos", $nombreImagen);
-    
+
                     $color = $request->input("colors.$index");
-    
+
                     Image::create([
                         'imagen' => $nombreImagen,
                         'producto_id' => $item->id,
@@ -129,7 +129,7 @@ class ProductosController extends Controller
                     ]);
                 }
             }
-    
+
             // Agregar características (mantén esta parte igual)
             $caracteristicas = $request->caracteristicas ?? [];
             foreach ($caracteristicas as $caracteristica) {
@@ -140,7 +140,7 @@ class ProductosController extends Controller
                     ]);
                 }
             }
-    
+
             DB::commit();
             return response()->json(["mensaje" => "Producto creado con éxito", "producto" => $item], 201);
         } catch (\Throwable $th) {
@@ -349,7 +349,6 @@ class ProductosController extends Controller
         // Validar la solicitud con modelos no requeridos y precio_preventa añadido
         $request->validate([
             "nombre" => "required|string|max:255",
-            "descripcion" => "nullable|string",
             "precio" => "required|numeric",
             "precio_preventa" => "nullable|numeric",
             "cantidad_minima" => "required|integer|min:1",
@@ -363,16 +362,30 @@ class ProductosController extends Controller
             'caracteristicas' => "nullable|array",
             'colors' => "nullable|array",
         ]);
-    
+        // Validar la descripción solo si se proporciona
+        $request->validate([
+            'descripcion' => 'sometimes|string|nullable',
+        ]);
         // Iniciar una transacción
         DB::beginTransaction();
         try {
             // Encontrar el producto
             $item = Producto::findOrFail($id);
-    
+
             // Actualizar los campos del producto
             $item->nombre = $request->nombre;
-            $item->descripcion = $request->descripcion;
+            // Actualizar la descripción solo si se proporciona un valor válido
+            if ($request->has('descripcion')) {
+                $descripcion = $request->descripcion;
+
+                // Solo actualizar si no es null o un espacio vacío
+                if ($descripcion !== null && trim($descripcion) !== '') {
+                    $item->descripcion = $descripcion;
+                } else {
+                    // Si la descripción es vacía, puedes optar por eliminarla o dejarla como está
+                    $item->descripcion = null; // O simplemente no hacer nada
+                }
+            }
             $item->precio = $request->precio;
             $item->precio_preventa = $request->precio_preventa;
             $item->categoria_id = $request->categoria_id;
@@ -380,23 +393,23 @@ class ProductosController extends Controller
             $item->cantidad_maxima = $request->cantidad_maxima;
             $item->cantidad_minima_preventa = $request->cantidad_minima_preventa;
             $item->cantidad_maxima_preventa = $request->cantidad_maxima_preventa;
-    
+
             // Actualizar la imagen principal si se proporciona una nueva
             if ($request->file('imagen_principal')) {
                 if ($item->imagen_principal) {
                     Storage::delete("images/imagenes_principales/" . $item->imagen_principal);
                 }
-    
+
                 $imagen_principal = $request->file('imagen_principal');
                 $nombreImagen = md5_file($imagen_principal->getPathname()) . '.' . $imagen_principal->getClientOriginalExtension();
                 $imagen_principal->move("images/imagenes_principales/", $nombreImagen);
                 $item->imagen_principal = $nombreImagen;
             }
             $item->save();
-    
+
             // Actualizar modelos del producto (ahora opcional)
             ModeloProducto::where("producto_id", $item->id)->delete();
-    
+
             if ($request->has('modelos') && is_array($request->modelos)) {
                 foreach ($request->modelos as $modeloData) {
                     try {
@@ -404,7 +417,7 @@ class ProductosController extends Controller
                         if (is_string($modeloData)) {
                             $modeloData = json_decode($modeloData, true);
                         }
-    
+
                         if (is_array($modeloData)) {
                             ModeloProducto::create([
                                 'nombre' => $modeloData['nombre'],
@@ -424,20 +437,20 @@ class ProductosController extends Controller
                     }
                 }
             }
-    
+
             // Manejar imágenes existentes (actualizar color y/o archivo)
             if ($request->has('existing_images')) {
                 foreach ($request->existing_images as $imageId => $value) {
                     $image = Image::where('id', $imageId)
                         ->where('producto_id', $item->id)
                         ->first();
-    
+
                     if ($image) {
                         // Actualizar el color si está presente
                         if (isset($request->existing_colors[$imageId])) {
                             $image->color = $request->existing_colors[$imageId];
                         }
-    
+
                         // Si hay un nuevo archivo para esta imagen existente
                         if ($request->hasFile("existing_images_files.{$imageId}")) {
                             // Eliminar la imagen anterior del almacenamiento
@@ -445,21 +458,21 @@ class ProductosController extends Controller
                             if (file_exists($oldImagePath)) {
                                 unlink($oldImagePath);
                             }
-    
+
                             // Guardar la nueva imagen
                             $newImageFile = $request->file("existing_images_files.{$imageId}");
                             $newImageName = md5_file($newImageFile->getPathname()) . '.' . $newImageFile->getClientOriginalExtension();
                             $newImageFile->move("images/productos", $newImageName);
-    
+
                             // Actualizar el nombre de la imagen en la base de datos
                             $image->imagen = $newImageName;
                         }
-    
+
                         $image->save();
                     }
                 }
             }
-    
+
             // Agregar nuevas imágenes
             if ($request->hasFile('images') && is_array($request->file('images'))) {
                 foreach ($request->file('images') as $index => $imageData) {
@@ -468,10 +481,10 @@ class ProductosController extends Controller
                         $nombreImagen = md5_file($imageData->getPathname()) . '.' . $imageData->getClientOriginalExtension();
                         // Mover la imagen a la carpeta deseada
                         $imageData->move("images/productos", $nombreImagen);
-    
+
                         // Obtener el color correspondiente
                         $color = $request->input("colors.$index");
-    
+
                         // Crear una nueva instancia de Image y guardar en la base de datos
                         Image::create([
                             'imagen' => $nombreImagen,
@@ -483,7 +496,7 @@ class ProductosController extends Controller
                     }
                 }
             }
-    
+
             // Actualizar características del producto
             Caracteristica::where("producto_id", $item->id)->delete();
             foreach ($request->caracteristicas ?? [] as $caracteristica) {
@@ -492,7 +505,7 @@ class ProductosController extends Controller
                     "caracteristica" => $caracteristica
                 ]);
             }
-    
+
             // Confirmar la transacción
             DB::commit();
             return response()->json(["mensaje" => "Producto actualizado con éxito", "producto" => $item], 200);
@@ -542,22 +555,22 @@ class ProductosController extends Controller
             ->orderBy('created_at', 'desc') // Ordenar por fecha de creación
             ->take(5) // Limitar a 5 productos
             ->get();
-    
+
         // Modificar las imágenes para incluir la URL completa
         $productos->transform(function ($producto) {
             $producto->images->transform(function ($image) {
                 $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
                 return $image;
             });
-    
+
             // Modificar la imagen principal para incluir la URL completa
             if ($producto->imagen_principal) {
                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Cambia la ruta según sea necesario
             }
-    
+
             return $producto;
         });
-    
+
         return response()->json(["mensaje" => "Productos recientes cargados correctamente", "datos" => $productos], 200);
     }
 
@@ -567,32 +580,32 @@ class ProductosController extends Controller
         $categoriaId = $request->input('categoria_id');
         $catalogoId = $request->input('catalogo_id');
         $search = $request->input('search');
-    
+
         // Iniciar la consulta
         $query = Producto::with('images', 'categoria', 'caracteristicas', 'modelos')
             ->where('estado', true) // Filtrar solo productos activos
             ->whereHas('categoria', function ($q) {
                 $q->where('estado', true) // Asegúrate de que solo se obtengan categorías activas
-                  ->whereHas('catalogo', function ($q) {
-                      $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
-                  });
+                    ->whereHas('catalogo', function ($q) {
+                        $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
+                    });
             });
-    
+
         // Aplicar filtro por categoría si se proporciona
         if ($categoriaId) {
             $query->where('categoria_id', $categoriaId);
         }
-    
+
         // Aplicar filtro por catálogo a través de la relación de categoría si se proporciona
         if ($catalogoId) {
             $query->whereHas('categoria', function ($q) use ($catalogoId) {
                 $q->where('catalogo_id', $catalogoId) // Asegúrate de que 'catalogo_id' es el nombre correcto de la columna en la tabla de categorías
-                  ->whereHas('catalogo', function ($q) {
-                      $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
-                  });
+                    ->whereHas('catalogo', function ($q) {
+                        $q->where('estado', true); // Asegúrate de que solo se obtengan catálogos activos
+                    });
             });
         }
-    
+
         // Aplicar búsqueda por nombre o descripción si se proporciona
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -600,10 +613,10 @@ class ProductosController extends Controller
                     ->orWhere('descripcion', 'like', '%' . $search . '%');
             });
         }
-    
+
         // Ejecutar la consulta y obtener los resultados
         $productos = $query->get();
-    
+
         // Modificar las imágenes para incluir la URL completa
         $productos->transform(function ($producto) {
             // Transformar las imágenes del producto
@@ -611,22 +624,23 @@ class ProductosController extends Controller
                 $image->imagen = asset("images/productos/" . $image->imagen); // Cambia la ruta según sea necesario
                 return $image;
             });
-    
+
             // Modificar la imagen principal para incluir la URL completa
             if ($producto->imagen_principal) {
                 $producto->imagen_principal = asset("images/imagenes_principales/" . $producto->imagen_principal); // Cambia la ruta según sea necesario
             }
-    
+
             return $producto;
         });
-    
+
         // Retornar la respuesta JSON con los productos filtrados
         return response()->json(["mensaje" => "Productos filtrados correctamente", "datos" => $productos], 200);
     }
-    public function cambiarEstado (String $id) {
+    public function cambiarEstado(String $id)
+    {
         $item = Producto::findOrFail($id);
         $item->estado = !$item->estado;
         $item->save();
-        return response()->json(["mensaje"=> "Estado modificado", "dato" => $item], 200);
+        return response()->json(["mensaje" => "Estado modificado", "dato" => $item], 200);
     }
 }

@@ -348,7 +348,7 @@
         <!-- Encabezado -->
         <div class="header">
             <div class="header-left">
-                <div class="company-name">Mi Empresa</div>
+                <div class="company-name">Neo Tech Bol</div>
                 <div class="document-title">Comprobante de Pedido</div>
             </div>
             <div class="header-right">
@@ -493,9 +493,9 @@
                         <td>
                             {{ $producto->nombre }}
                             @if($producto->pivot->es_preventa)
-                            <span class="preventa-badge">PREVENTA</span>
+                            <span class="preventa-badge">Estándar</span>
                             @else
-                            <span class="regular-badge">REGULAR</span>
+                            <span class="regular-badge">Especial</span>
                             @endif
                         </td>
                         <td>
@@ -525,42 +525,42 @@
                             @if($producto->pivot->es_preventa)
                                 <!-- Información de Preventa -->
                                 <div class="preventa-info">
-                                    <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
+                                    <div style="font-weight: bold; color: #9a3412;">Precio de Preventa Estándar</div>
                                     
                                     <!-- Comparación de precios -->
                                     <div class="price-comparison">
                                         <div>
-                                            <span class="price-tag selected">Preventa: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
+                                            <span class="price-tag selected">Estándar: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
                                         </div>
                                         <div>
-                                            <span class="price-tag not-selected">Regular: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
+                                            <span class="price-tag not-selected">Especial: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
                                         </div>
                                     </div>
                                     
                                     <!-- Rango de cantidades (como strings) -->
                                     <div class="quantity-range">
-                                        <span class="quantity-range-label">Rango de preventa:</span> 
+                                        <span class="quantity-range-label">Rango de preventa Estándar:</span> 
                                         {{ $cantidadMinimaPreventa }} - {{ $cantidadMaximaPreventa }} unidades
                                     </div>
                                 </div>
                             @else
                                 <!-- Información de Precio Regular -->
                                 <div class="regular-info">
-                                    <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
+                                    <div style="font-weight: bold; color: #1e40af;">Precio de Preventa Especial</div>
                                     
                                     <!-- Comparación de precios -->
                                     <div class="price-comparison">
                                         <div>
-                                            <span class="price-tag not-selected">Preventa: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
+                                            <span class="price-tag not-selected">Estándar: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}</span>
                                         </div>
                                         <div>
-                                            <span class="price-tag selected">Regular: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
+                                            <span class="price-tag selected">Especial: Bs {{ number_format($producto->pivot->precio, 2) }}</span>
                                         </div>
                                     </div>
                                     
                                     <!-- Rango de cantidades (como strings) -->
                                     <div class="quantity-range">
-                                        <span class="quantity-range-label">Rango regular:</span> 
+                                        <span class="quantity-range-label">Rango de preventa Especial:</span> 
                                         {{ $cantidadMinima }} - {{ $cantidadMaxima }} unidades
                                     </div>
                                 </div>
@@ -599,35 +599,6 @@
             </div>
         </div>
 
-        <!-- Leyenda de tipos de precio -->
-        <div class="section" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
-            <h2 class="section-title">Información de Precios</h2>
-            <div style="display: flex; gap: 10px; font-size: 8px;">
-                @php
-                    // Obtener los valores de cantidades mínimas y máximas del primer producto como strings
-                    $primerProducto = $pedido->productos->first();
-                    $cantidadMinima = $primerProducto->cantidad_minima ?? $primerProducto->pivot->cantidad_minima ?? 'N/A';
-                    $cantidadMaxima = $primerProducto->cantidad_maxima ?? $primerProducto->pivot->cantidad_maxima ?? 'N/A';
-                    $cantidadMinimaPreventa = $primerProducto->cantidad_minima_preventa ?? $primerProducto->pivot->cantidad_minima_preventa ?? 'N/A';
-                    $cantidadMaximaPreventa = $primerProducto->cantidad_maxima_preventa ?? $primerProducto->pivot->cantidad_maxima_preventa ?? 'N/A';
-                @endphp
-                <div style="flex: 1; background-color: #fffbeb; border: 1px dashed #f59e0b; padding: 3px; border-radius: 3px;">
-                    <div style="font-weight: bold; color: #9a3412;">Precio de Preventa</div>
-                    <p style="margin: 2px 0;">
-                        Precio especial aplicado cuando la cantidad está entre el mínimo y máximo de preventa.
-                        <br>Rango: {{ $cantidadMinimaPreventa }}-{{ $cantidadMaximaPreventa }} unidades.
-                    </p>
-                </div>
-                <div style="flex: 1; background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 3px; border-radius: 3px;">
-                    <div style="font-weight: bold; color: #1e40af;">Precio Regular</div>
-                    <p style="margin: 2px 0;">
-                        Precio estándar aplicado cuando la cantidad está fuera del rango de preventa.
-                        <br>Rango: {{ $cantidadMinima }}-{{ $cantidadMaxima }} unidades.
-                    </p>
-                </div>
-            </div>
-        </div>
-
         <!-- Mensaje de agradecimiento -->
         <div class="thank-you">
             ¡Gracias por su compra!
@@ -636,8 +607,8 @@
         <!-- Pie de página -->
         <div class="footer">
             <p>Este documento es un comprobante oficial de su pedido.</p>
-            <p>Para consultas: +591 XXXXXXXX | info@miempresa.com | www.miempresa.com</p>
-            <p>© {{ date('Y') }} Mi Empresa. Todos los derechos reservados.</p>
+            <p>Para consultas: +591 77997694 | info@miempresa.com | www.neotechbol.com</p>
+            <p>© {{ date('Y') }} neotechbol. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

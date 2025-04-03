@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\PedidosExport;
+use App\Exports\PedidosPorCatalogoExport;
+use App\Models\Catalogo;
 use App\Models\Cupones;
 use App\Models\Pedido;
 use App\Models\User;
@@ -11,35 +13,35 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
-
+use Illuminate\Support\Str;
 class PedidoController extends Controller
 {
     public function index(Request $request)
     {
         // Start with a base query
         $query = Pedido::with('user', 'productos', 'cupon');
-        
+
         // Filter by search term if provided
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->whereHas('user', function($q) use ($searchTerm) {
+            $query->whereHas('user', function ($q) use ($searchTerm) {
                 $q->where('nombre', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('apellido', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('apellido', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
             })->orWhere('id', 'LIKE', "%{$searchTerm}%");
         }
-        
+
         // Filter by status if provided
         if ($request->has('status') && $request->status != 'all') {
             $isPending = $request->status === 'pending';
             $query->where('estado', !$isPending);
         }
-        
+
         // Sort results if sort parameters are provided
         if ($request->has('sort_field') && $request->has('sort_direction')) {
             $sortField = $request->sort_field;
             $sortDirection = $request->sort_direction;
-            
+
             // Handle different sort fields
             switch ($sortField) {
                 case 'id':
@@ -57,12 +59,12 @@ class PedidoController extends Controller
             // Default sorting by most recent
             $query->orderBy('created_at', 'desc');
         }
-        
+
         // Paginate the results (10 items per page)
         $pedidos = $query->paginate(10);
-        
+
         return response()->json([
-            "message" => "Pedidos cargados", 
+            "message" => "Pedidos cargados",
             "datos" => $pedidos->items(),
             "pagination" => [
                 "total" => $pedidos->total(),
@@ -78,14 +80,14 @@ class PedidoController extends Controller
     public function show($id)
     {
         $pedido = Pedido::with(['user', 'productos.modelos', 'cupon'])->findOrFail($id);
-    
+
         if ($pedido->voucher) {
             $pedido->voucher = asset('vouchers/' . $pedido->voucher);
         }
-    
+
         $pedido->productos = $pedido->productos->map(function ($producto) {
             $pivotData = $producto->pivot;
-    
+
             return [
                 'id' => $producto->id,
                 'nombre' => $producto->nombre,
@@ -102,15 +104,15 @@ class PedidoController extends Controller
                 'cantidad_maxima' => $pivotData->cantidad_maxima,
                 'cantidad_minima_preventa' => $pivotData->cantidad_minima_preventa,
                 'cantidad_maxima_preventa' => $pivotData->cantidad_maxima_preventa,
-                'subtotal' => $pivotData->es_preventa 
-                    ? $pivotData->precio_preventa * $pivotData->cantidad 
+                'subtotal' => $pivotData->es_preventa
+                    ? $pivotData->precio_preventa * $pivotData->cantidad
                     : $pivotData->precio * $pivotData->cantidad,
-                'imagen_principal' => $producto->imagen_principal 
-                    ? asset('images/imagenes_principales/' . $producto->imagen_principal) 
+                'imagen_principal' => $producto->imagen_principal
+                    ? asset('images/imagenes_principales/' . $producto->imagen_principal)
                     : null // Agregar la imagen principal
             ];
         });
-    
+
         return response()->json($pedido);
     }
 
@@ -237,22 +239,31 @@ class PedidoController extends Controller
     {
         return Excel::download(new PedidosExport, 'pedidos.xlsx');
     }
+    /**
+     * Exporta los pedidos filtrados por catálogo a un archivo Excel.
+     *
+     * @param int $catalogoId ID del catálogo para filtrar
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+     */
+    public function exportarPedidosPorCatalogo($catalogoId)
+    {
+        // Obtener el nombre del catálogo para el nombre del archivo
+        $catalogo = Catalogo::findOrFail($catalogoId);
+        $nombreArchivo = 'pedidos-catalogo-' . Str::slug($catalogo->nombre) . '.xlsx';
 
+        return Excel::download(new PedidosPorCatalogoExport($catalogoId), $nombreArchivo);
+    }
     public function descargarPedidoPDF($id, Request $request)
     {
         try {
             // Carga el pedido con sus relaciones necesarias
             $pedido = Pedido::with([
-                'user', 
-                'productos.modelos', 
-                'productos.categoria', 
+                'user',
+                'productos.modelos',
+                'productos.categoria',
                 'cupon'
             ])->findOrFail($id);
-        
-            // Depuración: Imprimir los datos de la tabla pivot para verificar
-            // Comenta esta línea después de verificar los datos
-            // dd($pedido->productos->first()->pivot->toArray());
-        
+
             // Asegurarse de que los datos de la tabla pivot estén disponibles en la vista
             // Esto es crucial para mostrar las cantidades mínimas y máximas
             foreach ($pedido->productos as $producto) {
@@ -261,10 +272,10 @@ class PedidoController extends Controller
                 $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
                 $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
                 $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
-            
+
                 // También asegurarse de que otros campos importantes estén disponibles
                 $producto->es_preventa = $producto->pivot->es_preventa;
-                $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                $producto->precio_aplicado = $producto->pivot->es_preventa ?
                     $producto->pivot->precio_preventa : $producto->pivot->precio;
                 $producto->precio_regular = $producto->pivot->precio;
                 $producto->precio_preventa = $producto->pivot->precio_preventa;
@@ -305,40 +316,37 @@ class PedidoController extends Controller
                         'message' => 'PDF generado exitosamente'
                     ]);
 
-            case 'url':
-                // Generar nombre único para el archivo
-                $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
-                
-                // Guardar el PDF en el almacenamiento
-                Storage::disk('public')->put($filename, $pdf->output());
-                $url = Storage::disk('public')->url($filename);
+                case 'url':
+                    // Generar nombre único para el archivo
+                    $filename = 'pedidos/pedido_' . $pedido->id . '_' . time() . '.pdf';
 
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'pedido_id' => $pedido->id,
-                        'filename' => 'pedido_' . $pedido->id . '.pdf',
-                        'url' => $url,
-                        'expires_at' => now()->addDay()->toIso8601String(),
-                    ],
-                    'message' => 'URL de descarga generada exitosamente'
-                ]);
+                    // Guardar el PDF en el almacenamiento
+                    Storage::disk('public')->put($filename, $pdf->output());
+                    $url = Storage::disk('public')->url($filename);
 
-            case 'binary':
-            default:
-                // Configurar nombre del archivo para descarga
-                return $pdf->download('pedido_' . $pedido->id . '.pdf');
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'pedido_id' => $pedido->id,
+                            'filename' => 'pedido_' . $pedido->id . '.pdf',
+                            'url' => $url,
+                            'expires_at' => now()->addDay()->toIso8601String(),
+                        ],
+                        'message' => 'URL de descarga generada exitosamente'
+                    ]);
+
+                case 'binary':
+                default:
+                    // Configurar nombre del archivo para descarga
+                    return $pdf->download('pedido_' . $pedido->id . '.pdf');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el PDF: ' . $e->getMessage()
+            ], 500);
         }
-    } catch (\Exception $e) {
-        // Registrar el error para depuración
-        \Log::error('Error al generar PDF: ' . $e->getMessage());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al generar el PDF: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     public function repetirPedido($id)
     {
@@ -420,7 +428,7 @@ class PedidoController extends Controller
                     $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
                     $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
                     $producto->es_preventa = $producto->pivot->es_preventa;
-                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ?
                         $producto->pivot->precio_preventa : $producto->pivot->precio;
                     $producto->precio_regular = $producto->pivot->precio;
                     $producto->precio_preventa = $producto->pivot->precio_preventa;
@@ -544,7 +552,7 @@ class PedidoController extends Controller
                     $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
                     $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
                     $producto->es_preventa = $producto->pivot->es_preventa;
-                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ?
                         $producto->pivot->precio_preventa : $producto->pivot->precio;
                     $producto->precio_regular = $producto->pivot->precio;
                     $producto->precio_preventa = $producto->pivot->precio_preventa;
@@ -651,31 +659,31 @@ class PedidoController extends Controller
         try {
             // Verificar que el catálogo existe
             $catalogo = \App\Models\Catalogo::findOrFail($catalogoId);
-            
+
             // Obtener todas las categorías del catálogo
             $categorias = \App\Models\Categoria::where('catalogo_id', $catalogoId)->pluck('id');
-            
+
             if ($categorias->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'El catálogo no tiene categorías asociadas'
                 ], 404);
             }
-            
+
             // Obtener todos los productos de las categorías del catálogo
             $productosIds = \App\Models\Producto::whereIn('categoria_id', $categorias)->pluck('id');
-            
+
             if ($productosIds->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No hay productos asociados a las categorías de este catálogo'
                 ], 404);
             }
-            
+
             // Cargar pedidos que contengan productos del catálogo
             $pedidos = Pedido::with([
                 'user',
-                'productos' => function($query) use ($productosIds) {
+                'productos' => function ($query) use ($productosIds) {
                     $query->whereIn('productos.id', $productosIds);
                 },
                 'productos.modelos',
@@ -683,12 +691,12 @@ class PedidoController extends Controller
                 'productos.categoria.catalogo',
                 'cupon'
             ])
-            ->whereHas('productos', function($query) use ($productosIds) {
-                $query->whereIn('productos.id', $productosIds);
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
+                ->whereHas('productos', function ($query) use ($productosIds) {
+                    $query->whereIn('productos.id', $productosIds);
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
             // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
             foreach ($pedidos as $pedido) {
                 $pedido->productos->each(function ($producto) {
@@ -697,7 +705,7 @@ class PedidoController extends Controller
                     $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
                     $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
                     $producto->es_preventa = $producto->pivot->es_preventa;
-                    $producto->precio_aplicado = $producto->pivot->es_preventa ? 
+                    $producto->precio_aplicado = $producto->pivot->es_preventa ?
                         $producto->pivot->precio_preventa : $producto->pivot->precio;
                     $producto->precio_regular = $producto->pivot->precio;
                     $producto->precio_preventa = $producto->pivot->precio_preventa;
@@ -706,27 +714,27 @@ class PedidoController extends Controller
                     $producto->cantidad = $producto->pivot->cantidad;
                 });
             }
-            
+
             // Filtrar pedidos que no tengan productos después del whereIn
-            $pedidos = $pedidos->filter(function($pedido) {
+            $pedidos = $pedidos->filter(function ($pedido) {
                 return $pedido->productos->isNotEmpty();
             });
-            
+
             if ($pedidos->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No hay pedidos con productos de este catálogo'
                 ], 404);
             }
-            
+
             // Procesar los datos para el reporte
             $fechaActual = Carbon::now()->format('d/m/Y H:i');
             $totalPedidos = $pedidos->count();
-            
+
             // Calcular el monto total y productos vendidos solo para los productos del catálogo
             $montoTotal = 0;
             $totalProductos = 0;
-            
+
             foreach ($pedidos as $pedido) {
                 foreach ($pedido->productos as $producto) {
                     $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
@@ -735,21 +743,21 @@ class PedidoController extends Controller
                     $totalProductos += $producto->pivot->cantidad;
                 }
             }
-            
+
             // Agrupar productos por categoría para el reporte
             $productosPorCategoria = [];
             foreach ($pedidos as $pedido) {
                 foreach ($pedido->productos as $producto) {
                     $categoriaId = $producto->categoria_id;
                     $categoriaNombre = $producto->categoria->nombre;
-                    
+
                     if (!isset($productosPorCategoria[$categoriaId])) {
                         $productosPorCategoria[$categoriaId] = [
                             'nombre' => $categoriaNombre,
                             'productos' => []
                         ];
                     }
-                    
+
                     if (!isset($productosPorCategoria[$categoriaId]['productos'][$producto->id])) {
                         $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
                             'nombre' => $producto->nombre,
@@ -757,15 +765,15 @@ class PedidoController extends Controller
                             'monto' => 0
                         ];
                     }
-                    
+
                     $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
                     $subtotal = $precioUnitario * $producto->pivot->cantidad;
-                    
+
                     $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
                     $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
                 }
             }
-            
+
             // Preparar datos para la vista
             $data = [
                 'catalogo' => $catalogo,
@@ -781,7 +789,7 @@ class PedidoController extends Controller
                 'productosPorCategoria' => $productosPorCategoria,
                 'titulo' => 'Pedidos del Catálogo: ' . $catalogo->nombre,
             ];
-            
+
             // Generar el PDF
             $pdf = PDF::loadView('pedidos.reporte_catalogo', $data);
             $pdf->setPaper('a4', 'portrait');
@@ -790,11 +798,11 @@ class PedidoController extends Controller
                 'isRemoteEnabled' => true,
                 'defaultFont' => 'sans-serif',
             ]);
-            
+
             // Determinar el formato de respuesta
             $responseFormat = $request->query('format', 'binary');
             $filename = 'pedidos_catalogo_' . $catalogo->id . '_' . Carbon::now()->format('dmY_His') . '.pdf';
-            
+
             switch ($responseFormat) {
                 case 'base64':
                     $base64 = base64_encode($pdf->output());
@@ -812,12 +820,12 @@ class PedidoController extends Controller
                         ],
                         'message' => 'PDF de pedidos del catálogo generado exitosamente'
                     ]);
-                    
+
                 case 'url':
                     $path = 'pedidos/' . $filename;
                     Storage::disk('public')->put($path, $pdf->output());
                     $url = Storage::disk('public')->url($path);
-                    
+
                     return response()->json([
                         'success' => true,
                         'data' => [
@@ -832,7 +840,7 @@ class PedidoController extends Controller
                         ],
                         'message' => 'URL de descarga generada exitosamente'
                     ]);
-                    
+
                 case 'binary':
                 default:
                     return $pdf->download($filename);

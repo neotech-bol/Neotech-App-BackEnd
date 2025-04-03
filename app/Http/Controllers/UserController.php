@@ -204,16 +204,29 @@ class UserController extends Controller
 
         return response()->json(["mensaje" => "Usuario actualizado correctamente", "datos" => $user], 200);
     }
-    public function getAuthenticatedUser()
+    public function getAuthenticatedUser(Request $request)
     {
         // Obtener el usuario autenticado
         $user = auth()->user();
-
+    
         // Verificar si el usuario está autenticado
         if ($user) {
             // Cargar los roles del usuario
-            $user->load('roles', 'pedidos');
-
+            $user->load('roles');
+            
+            // Obtener el filtro de estado si existe
+            $estadoFiltro = $request->query('estado');
+            
+            // Cargar los pedidos con filtro si se especifica
+            if ($estadoFiltro !== null && in_array($estadoFiltro, ['0', '1'])) {
+                $user->load(['pedidos' => function($query) use ($estadoFiltro) {
+                    $query->where('estado', $estadoFiltro);
+                }]);
+            } else {
+                // Cargar todos los pedidos si no hay filtro
+                $user->load('pedidos');
+            }
+    
             // Retornar una respuesta con los datos del usuario
             return response()->json([
                 "mensaje" => "Datos del usuario autenticado",

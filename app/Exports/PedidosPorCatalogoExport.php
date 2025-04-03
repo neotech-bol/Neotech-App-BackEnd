@@ -2,6 +2,9 @@
 namespace App\Exports;
 
 use App\Models\Pedido;
+use App\Models\Catalogo;
+use App\Models\Categoria;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -16,8 +19,36 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class PedidosExport implements WithMultipleSheets
+class PedidosPorCatalogoExport implements WithMultipleSheets
 {
+    /**
+     * ID del catálogo para filtrar los pedidos.
+     *
+     * @var int|null
+     */
+    protected $catalogoId;
+    
+    /**
+     * Nombre del catálogo para el título del archivo.
+     *
+     * @var string
+     */
+    protected $catalogoNombre;
+
+    /**
+     * Constructor.
+     *
+     * @param int $catalogoId ID del catálogo para filtrar
+     */
+    public function __construct(int $catalogoId)
+    {
+        $this->catalogoId = $catalogoId;
+        
+        // Obtener el nombre del catálogo
+        $catalogo = Catalogo::find($catalogoId);
+        $this->catalogoNombre = $catalogo ? $catalogo->nombre : 'Desconocido';
+    }
+
     /**
      * Implementa las hojas que contendrá el archivo Excel.
      *
@@ -26,8 +57,8 @@ class PedidosExport implements WithMultipleSheets
     public function sheets(): array
     {
         $sheets = [
-            new PedidosResumenSheet(),
-            new PedidosDetalleSheet(),
+            new PedidosResumenPorCatalogoSheet($this->catalogoId, $this->catalogoNombre),
+            new PedidosDetallePorCatalogoSheet($this->catalogoId, $this->catalogoNombre),
         ];
 
         return $sheets;
@@ -35,19 +66,57 @@ class PedidosExport implements WithMultipleSheets
 }
 
 /**
- * Hoja de resumen de pedidos
+ * Hoja de resumen de pedidos filtrados por catálogo
  */
-class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
+class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
 {
     /**
-     * Obtiene la colección de pedidos para exportar.
+     * ID del catálogo para filtrar los pedidos.
+     *
+     * @var int|null
+     */
+    protected $catalogoId;
+    
+    /**
+     * Nombre del catálogo.
+     *
+     * @var string
+     */
+    protected $catalogoNombre;
+
+    /**
+     * Constructor.
+     *
+     * @param int $catalogoId ID del catálogo para filtrar
+     * @param string $catalogoNombre Nombre del catálogo
+     */
+    public function __construct(int $catalogoId, string $catalogoNombre)
+    {
+        $this->catalogoId = $catalogoId;
+        $this->catalogoNombre = $catalogoNombre;
+    }
+
+    /**
+     * Obtiene la colección de pedidos para exportar, filtrados por catálogo.
      *
      * @return \Illuminate\Support\Collection
      */
     public function collection()
     {
+        // Obtener pedidos que contengan productos del catálogo especificado
+        $pedidosIds = DB::table('pedido_producto')
+            ->join('productos', 'pedido_producto.producto_id', '=', 'productos.id')
+            ->where('productos.catalogo_id', $this->catalogoId)
+            ->select('pedido_producto.pedido_id')
+            ->distinct()
+            ->pluck('pedido_id');
+        
         // Cargar los pedidos con los datos del usuario y cupón
-        return Pedido::with(['user', 'cupon', 'productos'])->get();
+        return Pedido::with(['user', 'cupon', 'productos' => function($query) {
+                $query->where('catalogo_id', $this->catalogoId);
+            }])
+            ->whereIn('id', $pedidosIds)
+            ->get();
     }
 
     /**
@@ -58,8 +127,15 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
      */
     public function map($pedido): array
     {
-        // Calcular el total de productos
+        // Calcular el total de productos del catálogo específico
         $totalProductos = $pedido->productos->sum('pivot.cantidad');
+
+        // Calcular el total de ventas de productos del catálogo específico
+        $totalVentas = $pedido->productos->sum(function ($producto) {
+            $pivotData = $producto->pivot;
+            $precioUsado = $pivotData->es_preventa ? $pivotData->precio_preventa : $pivotData->precio;
+            return $precioUsado * $pivotData->cantidad;
+        });
 
         // Obtener datos del cupón
         $cuponNombre = $pedido->cupon ? $pedido->cupon->codigo : 'Sin cupón';
@@ -73,13 +149,9 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
             'nit' => $pedido->user->nit,
             'telefono' => $pedido->user->telefono,
             'genero' => $pedido->user->genero,
-            'total_amount' => $pedido->total_amount,
-            'total_to_pay' => $pedido->total_to_pay,
-            'pending' => $pedido->pending,
-            'cupon_codigo' => $cuponNombre,
-            'cupon_descuento' => $cuponDescripcion,
+            'total_catalogo' => $totalVentas, // Total de ventas de productos del catálogo
+            'total_productos' => $totalProductos, // Total de productos del catálogo
             'estado' => $pedido->estado ? 'Completado' : 'Pendiente',
-            'total_productos' => $totalProductos,
             'metodo_pago' => $pedido->payment_method,
             'created_at' => $pedido->created_at->format('d/m/Y H:i:s'),
         ];
@@ -93,20 +165,16 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
     public function headings(): array
     {
         return [
-            'ID',
+            'ID Pedido',
             'Nombre',
             'Apellido',
             'CI',
             'NIT',
             'Teléfono',
             'Género',
-            'Monto Total',
-            'Total a Pagar',
-            'Pendiente',
-            'Código de Cupón',
-            'Descuento del Cupón',
+            'Total Ventas Catálogo',
+            'Total Productos',
             'Estado',
-            'Total de Productos',
             'Método de Pago',
             'Fecha de Creación',
         ];
@@ -121,8 +189,6 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
     {
         return [
             'H' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
-            'I' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
-            'J' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
         ];
     }
 
@@ -137,6 +203,18 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
         // Obtener el número total de filas
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
+        
+        // Añadir título del catálogo
+        $sheet->mergeCells('A1:' . $highestColumn . '1');
+        $sheet->setCellValue('A1', 'Catálogo: ' . $this->catalogoNombre);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+        
+        // Estilo para el título del catálogo
+        $sheet->getStyle('A1:' . $highestColumn . '1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('D9E1F2'); // Azul claro
         
         // Estilo para encabezados
         $headerStyle = [
@@ -161,9 +239,9 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
             ],
         ];
         
-        // Aplicar estilo a encabezados
-        $sheet->getStyle('A1:' . $highestColumn . '1')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(1)->setRowHeight(30); // Altura para la fila de encabezados
+        // Aplicar estilo a encabezados (ahora en la fila 2)
+        $sheet->getStyle('A2:' . $highestColumn . '2')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(2)->setRowHeight(30);
         
         // Estilo para filas de datos
         $dataStyle = [
@@ -178,25 +256,27 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
             ],
         ];
         
-        // Aplicar estilo a filas de datos
-        $sheet->getStyle('A2:' . $highestColumn . $highestRow)->applyFromArray($dataStyle);
-        
-        // Estilo para filas alternas (cebra)
-        for ($row = 2; $row <= $highestRow; $row++) {
-            if ($row % 2 == 0) {
-                $sheet->getStyle('A' . $row . ':' . $highestColumn . $row)->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('F2F2F2'); // Gris muy claro
+        // Aplicar estilo a filas de datos (desde la fila 3)
+        if ($highestRow > 2) {
+            $sheet->getStyle('A3:' . $highestColumn . $highestRow)->applyFromArray($dataStyle);
+            
+            // Estilo para filas alternas (cebra)
+            for ($row = 3; $row <= $highestRow; $row++) {
+                if ($row % 2 == 1) { // Cambio para que alterne correctamente
+                    $sheet->getStyle('A' . $row . ':' . $highestColumn . $row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB('F2F2F2'); // Gris muy claro
+                }
+            }
+            
+            // Ajustar altura de filas de datos
+            for ($row = 3; $row <= $highestRow; $row++) {
+                $sheet->getRowDimension($row)->setRowHeight(20);
             }
         }
         
-        // Ajustar altura de filas de datos
-        for ($row = 2; $row <= $highestRow; $row++) {
-            $sheet->getRowDimension($row)->setRowHeight(20);
-        }
-        
         // Congelar la primera fila
-        $sheet->freezePane('A2');
+        $sheet->freezePane('A3');
         
         // Aplicar formato condicional para resaltar pedidos pendientes
         $conditionalStyles = [
@@ -207,7 +287,7 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
             ->setText('Pendiente')
             ->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFCC99');
         
-        $sheet->getStyle('M2:M' . $highestRow)->setConditionalStyles($conditionalStyles);
+        $sheet->getStyle('J3:J' . $highestRow)->setConditionalStyles($conditionalStyles);
     }
 
     /**
@@ -222,19 +302,59 @@ class PedidosResumenSheet implements FromCollection, WithMapping, WithHeadings, 
 }
 
 /**
- * Hoja de detalles de productos por pedido
+ * Hoja de detalles de productos por pedido filtrados por catálogo
  */
-class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
+class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
 {
     /**
-     * Obtiene la colección de productos de pedidos para exportar.
+     * ID del catálogo para filtrar los pedidos.
+     *
+     * @var int|null
+     */
+    protected $catalogoId;
+    
+    /**
+     * Nombre del catálogo.
+     *
+     * @var string
+     */
+    protected $catalogoNombre;
+
+    /**
+     * Constructor.
+     *
+     * @param int $catalogoId ID del catálogo para filtrar
+     * @param string $catalogoNombre Nombre del catálogo
+     */
+    public function __construct(int $catalogoId, string $catalogoNombre)
+    {
+        $this->catalogoId = $catalogoId;
+        $this->catalogoNombre = $catalogoNombre;
+    }
+
+    /**
+     * Obtiene la colección de productos de pedidos para exportar, filtrados por catálogo.
      *
      * @return \Illuminate\Support\Collection
      */
     public function collection()
     {
-        // Cargar todos los pedidos con sus productos
-        $pedidos = Pedido::with(['productos.modelos', 'user'])->get();
+        // Obtener pedidos que contengan productos del catálogo especificado
+        $pedidosIds = DB::table('pedido_producto')
+            ->join('productos', 'pedido_producto.producto_id', '=', 'productos.id')
+            ->where('productos.catalogo_id', $this->catalogoId)
+            ->select('pedido_producto.pedido_id')
+            ->distinct()
+            ->pluck('pedido_id');
+        
+        // Cargar todos los pedidos con sus productos del catálogo específico
+        $pedidos = Pedido::with([
+            'productos' => function($query) {
+                $query->where('catalogo_id', $this->catalogoId)
+                      ->with('modelos', 'categorias');
+            }, 
+            'user'
+        ])->whereIn('id', $pedidosIds)->get();
         
         // Crear una colección plana de todos los productos en todos los pedidos
         $productosEnPedidos = collect();
@@ -243,6 +363,10 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             foreach ($pedido->productos as $producto) {
                 $pivotData = $producto->pivot;
                 
+                // Obtener las categorías del producto
+                $categorias = $producto->categorias;
+                $categoriasNombres = $categorias->pluck('nombre')->implode(', ');
+                
                 $productosEnPedidos->push([
                     'pedido_id' => $pedido->id,
                     'cliente' => $pedido->user->nombre . ' ' . $pedido->user->apellido,
@@ -250,6 +374,8 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
                     'producto' => $producto,
                     'pivot' => $pivotData,
                     'modelo' => $pivotData->modelo_id ? optional($producto->modelos->where('id', $pivotData->modelo_id)->first()) : null,
+                    'categorias' => $categoriasNombres,
+                    'estado_pedido' => $pedido->estado,
                 ]);
             }
         }
@@ -278,6 +404,7 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             'pedido_id' => $item['pedido_id'],
             'cliente' => $item['cliente'],
             'fecha_pedido' => $item['fecha_pedido']->format('d/m/Y H:i:s'),
+            'categorias' => $item['categorias'] ?: 'Sin categoría',
             'producto_nombre' => $producto->nombre,
             'cantidad' => $pivotData->cantidad,
             'modelo' => $modelo ? $modelo->nombre : 'N/A',
@@ -285,6 +412,7 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             'tipo_precio' => $tipoPrecio,
             'precio_unitario' => $precioUsado,
             'subtotal' => $precioUsado * $pivotData->cantidad,
+            'estado_pedido' => $item['estado_pedido'] ? 'Completado' : 'Pendiente',
         ];
     }
 
@@ -299,6 +427,7 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             'Nº de Pedido',
             'Cliente',
             'Fecha del Pedido',
+            'Categorías',
             'Producto',
             'Cantidad',
             'Modelo',
@@ -306,6 +435,7 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             'Tipo de Precio',
             'Precio Unitario',
             'Subtotal',
+            'Estado del Pedido',
         ];
     }
 
@@ -317,8 +447,8 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
     public function columnFormats(): array
     {
         return [
-            'I' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
             'J' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
+            'K' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
         ];
     }
 
@@ -333,6 +463,18 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
         // Obtener el número total de filas
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
+        
+        // Añadir título del catálogo
+        $sheet->mergeCells('A1:' . $highestColumn . '1');
+        $sheet->setCellValue('A1', 'Catálogo: ' . $this->catalogoNombre . ' - Detalle de Productos');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+        
+        // Estilo para el título del catálogo
+        $sheet->getStyle('A1:' . $highestColumn . '1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('E2EFDA'); // Verde claro
         
         // Estilo para encabezados
         $headerStyle = [
@@ -357,9 +499,9 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             ],
         ];
         
-        // Aplicar estilo a encabezados
-        $sheet->getStyle('A1:' . $highestColumn . '1')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(1)->setRowHeight(30); // Altura para la fila de encabezados
+        // Aplicar estilo a encabezados (ahora en la fila 2)
+        $sheet->getStyle('A2:' . $highestColumn . '2')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(2)->setRowHeight(30);
         
         // Estilo para filas de datos
         $dataStyle = [
@@ -374,25 +516,27 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             ],
         ];
         
-        // Aplicar estilo a filas de datos
-        $sheet->getStyle('A2:' . $highestColumn . $highestRow)->applyFromArray($dataStyle);
-        
-        // Estilo para filas alternas (cebra)
-        for ($row = 2; $row <= $highestRow; $row++) {
-            if ($row % 2 == 0) {
-                $sheet->getStyle('A' . $row . ':' . $highestColumn . $row)->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('E2EFDA'); // Verde muy claro
+        // Aplicar estilo a filas de datos (desde la fila 3)
+        if ($highestRow > 2) {
+            $sheet->getStyle('A3:' . $highestColumn . $highestRow)->applyFromArray($dataStyle);
+            
+            // Estilo para filas alternas (cebra)
+            for ($row = 3; $row <= $highestRow; $row++) {
+                if ($row % 2 == 1) { // Cambio para que alterne correctamente
+                    $sheet->getStyle('A' . $row . ':' . $highestColumn . $row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB('E2EFDA'); // Verde muy claro
+                }
+            }
+            
+            // Ajustar altura de filas de datos
+            for ($row = 3; $row <= $highestRow; $row++) {
+                $sheet->getRowDimension($row)->setRowHeight(20);
             }
         }
         
-        // Ajustar altura de filas de datos
-        for ($row = 2; $row <= $highestRow; $row++) {
-            $sheet->getRowDimension($row)->setRowHeight(20);
-        }
-        
         // Congelar la primera fila
-        $sheet->freezePane('A2');
+        $sheet->freezePane('A3');
         
         // Aplicar formato condicional para resaltar diferentes tipos de precio
         $conditionalStyles1 = [
@@ -411,13 +555,25 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
             ->setText('Preventa Especial')
             ->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFBDD7EE');
         
-        $sheet->getStyle('H2:H' . $highestRow)->setConditionalStyles($conditionalStyles1);
-        $sheet->getStyle('H2:H' . $highestRow)->setConditionalStyles($conditionalStyles2);
+        $sheet->getStyle('I3:I' . $highestRow)->setConditionalStyles($conditionalStyles1);
+        $sheet->getStyle('I3:I' . $highestRow)->setConditionalStyles($conditionalStyles2);
+        
+        // Aplicar formato condicional para resaltar pedidos pendientes
+        $conditionalStyles3 = [
+            new \PhpOffice\PhpSpreadsheet\Style\Conditional(),
+        ];
+        $conditionalStyles3[0]->setConditionType(\PhpOffice\PhpSpreadsheet\Style\Conditional::CONDITION_CONTAINSTEXT)
+            ->setOperatorType(\PhpOffice\PhpSpreadsheet\Style\Conditional::OPERATOR_CONTAINSTEXT)
+            ->setText('Pendiente')
+            ->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFCC99');
+        
+        $sheet->getStyle('L3:L' . $highestRow)->setConditionalStyles($conditionalStyles3);
         
         // Centrar algunas columnas
-        $sheet->getStyle('A2:A' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E2:E' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('H2:H' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A3:A' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('F3:F' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('I3:I' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('L3:L' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     /**
@@ -427,6 +583,6 @@ class PedidosDetalleSheet implements FromCollection, WithMapping, WithHeadings, 
      */
     public function title(): string
     {
-        return 'Productos por Pedido';
+        return 'Detalle de Productos';
     }
 }
