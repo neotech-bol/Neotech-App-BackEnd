@@ -19,15 +19,14 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class PedidosPorCatalogoExport implements WithMultipleSheets
-{
+class PedidosPorCatalogoExport implements WithMultipleSheets {
     /**
      * ID del catálogo para filtrar los pedidos.
      *
      * @var int|null
      */
     protected $catalogoId;
-    
+
     /**
      * Nombre del catálogo para el título del archivo.
      *
@@ -54,7 +53,7 @@ class PedidosPorCatalogoExport implements WithMultipleSheets
      *
      * @return array
      */
-    public function sheets(): array
+    public function sheets(): array 
     {
         $sheets = [
             new PedidosResumenPorCatalogoSheet($this->catalogoId, $this->catalogoNombre),
@@ -68,7 +67,8 @@ class PedidosPorCatalogoExport implements WithMultipleSheets
 /**
  * Hoja de resumen de pedidos filtrados por catálogo
  */
-class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
+class PedidosResumenPorCatalogoSheet
+    implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
 {
     /**
      * ID del catálogo para filtrar los pedidos.
@@ -76,7 +76,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      * @var int|null
      */
     protected $catalogoId;
-    
+
     /**
      * Nombre del catálogo.
      *
@@ -101,19 +101,34 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return \Illuminate\Support\Collection
      */
-    public function collection()
+    public function collection() 
     {
-        // Obtener pedidos que contengan productos del catálogo especificado
+        // Obtener las categorías que pertenecen al catálogo
+        $categorias = Categoria::where('catalogo_id', $this->catalogoId)->pluck('id');
+
+        if ($categorias->isEmpty()) {
+            return collect([]);
+        }
+
+        // Obtener los productos que pertenecen a esas categorías
+        $productosIds = DB::table('productos')
+            ->whereIn('categoria_id', $categorias)
+            ->pluck('id');
+
+        if ($productosIds->isEmpty()) {
+            return collect([]);
+        }
+
+        // Obtener pedidos que contengan productos de las categorías del catálogo
         $pedidosIds = DB::table('pedido_producto')
-            ->join('productos', 'pedido_producto.producto_id', '=', 'productos.id')
-            ->where('productos.catalogo_id', $this->catalogoId)
-            ->select('pedido_producto.pedido_id')
+            ->whereIn('producto_id', $productosIds)
+            ->select('pedido_id')
             ->distinct()
             ->pluck('pedido_id');
-        
+
         // Cargar los pedidos con los datos del usuario y cupón
-        return Pedido::with(['user', 'cupon', 'productos' => function($query) {
-                $query->where('catalogo_id', $this->catalogoId);
+        return Pedido::with(['user', 'cupon', 'productos' => function($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds);
             }])
             ->whereIn('id', $pedidosIds)
             ->get();
@@ -125,7 +140,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      * @param mixed $pedido
      * @return array
      */
-    public function map($pedido): array
+    public function map($pedido): array 
     {
         // Calcular el total de productos del catálogo específico
         $totalProductos = $pedido->productos->sum('pivot.cantidad');
@@ -162,21 +177,21 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return array
      */
-    public function headings(): array
+    public function headings(): array 
     {
         return [
-            'ID Pedido',
-            'Nombre',
-            'Apellido',
-            'CI',
-            'NIT',
-            'Teléfono',
-            'Género',
-            'Total Ventas Catálogo',
-            'Total Productos',
-            'Estado',
-            'Método de Pago',
-            'Fecha de Creación',
+            "ID Pedido",
+            "Nombre",
+            "Apellido",
+            "CI",
+            "NIT",
+            "Teléfono",
+            "Género",
+            "Total Ventas Catálogo",
+            "Total Productos",
+            "Estado",
+            "Método de Pago",
+            "Fecha de Creación",
         ];
     }
 
@@ -185,7 +200,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return array
      */
-    public function columnFormats(): array
+    public function columnFormats(): array 
     {
         return [
             'H' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
@@ -204,7 +219,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
         
-        // Añadir título del catálogo
+        // Añadir título del catálogo (ahora en fila 1)
         $sheet->mergeCells('A1:' . $highestColumn . '1');
         $sheet->setCellValue('A1', 'Catálogo: ' . $this->catalogoNombre);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
@@ -216,7 +231,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
             ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('D9E1F2'); // Azul claro
         
-        // Estilo para encabezados
+        // Estilo para encabezados (ahora en fila 2)
         $headerStyle = [
             'font' => [
                 'bold' => true,
@@ -275,7 +290,7 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
             }
         }
         
-        // Congelar la primera fila
+        // Congelar la primera fila después del título y encabezados
         $sheet->freezePane('A3');
         
         // Aplicar formato condicional para resaltar pedidos pendientes
@@ -295,16 +310,17 @@ class PedidosResumenPorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return string
      */
-    public function title(): string
+    public function title(): string 
     {
-        return 'Resumen de Pedidos';
+        return "Resumen de Pedidos";
     }
 }
 
 /**
  * Hoja de detalles de productos por pedido filtrados por catálogo
  */
-class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
+class PedidosDetallePorCatalogoSheet
+    implements FromCollection, WithMapping, WithHeadings, WithStyles, WithTitle, ShouldAutoSize, WithColumnFormatting
 {
     /**
      * ID del catálogo para filtrar los pedidos.
@@ -312,7 +328,7 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      * @var int|null
      */
     protected $catalogoId;
-    
+
     /**
      * Nombre del catálogo.
      *
@@ -337,36 +353,51 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return \Illuminate\Support\Collection
      */
-    public function collection()
+    public function collection() 
     {
-        // Obtener pedidos que contengan productos del catálogo especificado
+        // Obtener las categorías que pertenecen al catálogo
+        $categorias = Categoria::where('catalogo_id', $this->catalogoId)->pluck('id');
+
+        if ($categorias->isEmpty()) {
+            return collect([]);
+        }
+
+        // Obtener los productos que pertenecen a esas categorías
+        $productosIds = DB::table('productos')
+            ->whereIn('categoria_id', $categorias)
+            ->pluck('id');
+
+        if ($productosIds->isEmpty()) {
+            return collect([]);
+        }
+
+        // Obtener pedidos que contengan productos de las categorías del catálogo
         $pedidosIds = DB::table('pedido_producto')
-            ->join('productos', 'pedido_producto.producto_id', '=', 'productos.id')
-            ->where('productos.catalogo_id', $this->catalogoId)
-            ->select('pedido_producto.pedido_id')
+            ->whereIn('producto_id', $productosIds)
+            ->select('pedido_id')
             ->distinct()
             ->pluck('pedido_id');
-        
+
         // Cargar todos los pedidos con sus productos del catálogo específico
         $pedidos = Pedido::with([
-            'productos' => function($query) {
-                $query->where('catalogo_id', $this->catalogoId)
-                      ->with('modelos', 'categorias');
+            'productos' => function($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds)
+                      ->with('modelos', 'categoria');
             }, 
             'user'
         ])->whereIn('id', $pedidosIds)->get();
-        
+
         // Crear una colección plana de todos los productos en todos los pedidos
         $productosEnPedidos = collect();
-        
+
         foreach ($pedidos as $pedido) {
             foreach ($pedido->productos as $producto) {
                 $pivotData = $producto->pivot;
-                
-                // Obtener las categorías del producto
-                $categorias = $producto->categorias;
-                $categoriasNombres = $categorias->pluck('nombre')->implode(', ');
-                
+
+                // Obtener la categoría del producto
+                $categoria = $producto->categoria;
+                $categoriaNombre = $categoria ? $categoria->nombre : 'Sin categoría';
+
                 $productosEnPedidos->push([
                     'pedido_id' => $pedido->id,
                     'cliente' => $pedido->user->nombre . ' ' . $pedido->user->apellido,
@@ -374,12 +405,12 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
                     'producto' => $producto,
                     'pivot' => $pivotData,
                     'modelo' => $pivotData->modelo_id ? optional($producto->modelos->where('id', $pivotData->modelo_id)->first()) : null,
-                    'categorias' => $categoriasNombres,
+                    'categorias' => $categoriaNombre,
                     'estado_pedido' => $pedido->estado,
                 ]);
             }
         }
-        
+
         return $productosEnPedidos;
     }
 
@@ -389,17 +420,17 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      * @param mixed $item
      * @return array
      */
-    public function map($item): array
+    public function map($item): array 
     {
-        $producto = $item['producto'];
-        $pivotData = $item['pivot'];
-        $modelo = $item['modelo'];
-        
+        $producto = $item["producto"];
+        $pivotData = $item["pivot"];
+        $modelo = $item["modelo"];
+
         // Determinar qué precio se usó
         $esPreventa = $pivotData->es_preventa;
         $precioUsado = $esPreventa ? $pivotData->precio_preventa : $pivotData->precio;
-        $tipoPrecio = $esPreventa ? 'Preventa Estándar' : 'Preventa Especial';
-        
+        $tipoPrecio = $esPreventa ? "Preventa Estándar" : "Preventa Especial";
+
         return [
             'pedido_id' => $item['pedido_id'],
             'cliente' => $item['cliente'],
@@ -421,21 +452,21 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return array
      */
-    public function headings(): array
+    public function headings(): array 
     {
         return [
-            'Nº de Pedido',
-            'Cliente',
-            'Fecha del Pedido',
-            'Categorías',
-            'Producto',
-            'Cantidad',
-            'Modelo',
-            'Color',
-            'Tipo de Precio',
-            'Precio Unitario',
-            'Subtotal',
-            'Estado del Pedido',
+            "Nº de Pedido",
+            "Cliente",
+            "Fecha del Pedido",
+            "Categorías",
+            "Producto",
+            "Cantidad",
+            "Modelo",
+            "Color",
+            "Tipo de Precio",
+            "Precio Unitario",
+            "Subtotal",
+            "Estado del Pedido",
         ];
     }
 
@@ -444,7 +475,7 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return array
      */
-    public function columnFormats(): array
+    public function columnFormats(): array 
     {
         return [
             'J' => NumberFormat::FORMAT_CURRENCY_USD_SIMPLE,
@@ -464,7 +495,7 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
         
-        // Añadir título del catálogo
+        // Añadir título del catálogo (ahora en fila 1)
         $sheet->mergeCells('A1:' . $highestColumn . '1');
         $sheet->setCellValue('A1', 'Catálogo: ' . $this->catalogoNombre . ' - Detalle de Productos');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
@@ -476,7 +507,7 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
             ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('E2EFDA'); // Verde claro
         
-        // Estilo para encabezados
+        // Estilo para encabezados (ahora en fila 2)
         $headerStyle = [
             'font' => [
                 'bold' => true,
@@ -535,7 +566,7 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
             }
         }
         
-        // Congelar la primera fila
+        // Congelar la primera fila después del título y encabezados
         $sheet->freezePane('A3');
         
         // Aplicar formato condicional para resaltar diferentes tipos de precio
@@ -581,8 +612,9 @@ class PedidosDetallePorCatalogoSheet implements FromCollection, WithMapping, Wit
      *
      * @return string
      */
-    public function title(): string
+    public function title(): string 
     {
-        return 'Detalle de Productos';
+        return "Detalle de Productos";
     }
 }
+

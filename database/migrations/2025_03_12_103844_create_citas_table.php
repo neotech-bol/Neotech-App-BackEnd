@@ -19,8 +19,8 @@ return new class extends Migration
             $table->date('fecha_de_cita');
             $table->time('hora_de_cita');
             $table->string('servicio_solicitado');
-            $table->text('mensaje');
-            $table->string('departamento');
+            $table->text('mensaje')->nullable();
+            $table->string('departamento')->nullable();
             $table->boolean('estado')->default(false);
             $table->string('ip_address')->nullable(); // Dirección IP del usuario
             $table->string('metodo_solicitud')->nullable(); // Método de solicitud de la cita

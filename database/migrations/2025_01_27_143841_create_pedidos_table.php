@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('estado')->default(false); // Estado del pedido
             $table->string('payment_method')->nullable(); // Método de pago
             $table->string('voucher')->nullable(); // Comprobante (voucher)
-            
+            $table->string('is_delete')->nullable()->default(false); // Estado del pago
             // Campos adicionales
             $table->string('direccion_envio')->nullable(); // Dirección de envío
             $table->string('ciudad')->nullable(); // Ciudad
