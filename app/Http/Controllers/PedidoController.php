@@ -14,34 +14,49 @@ use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+
 class PedidoController extends Controller
 {
     public function index(Request $request)
     {
         // Start with a base query
-        $query = Pedido::with('user', 'productos', 'cupon');
-
+        $query = Pedido::with('user', 'productos.categoria.catalogo', 'cupon');
+    
+        // Filter by catalog if provided
+        if ($request->has('catalogo_id') && $request->catalogo_id != '') {
+            $catalogoId = $request->catalogo_id;
+            
+            // Utilizamos una subconsulta más directa y eficiente
+            $query->whereHas('productos', function ($q) use ($catalogoId) {
+                $q->whereHas('categoria', function ($categoryQuery) use ($catalogoId) {
+                    $categoryQuery->where('catalogo_id', $catalogoId);
+                });
+            });
+        }
+    
         // Filter by search term if provided
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->whereHas('user', function ($q) use ($searchTerm) {
-                $q->where('nombre', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('apellido', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
-            })->orWhere('id', 'LIKE', "%{$searchTerm}%");
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereHas('user', function ($userQuery) use ($searchTerm) {
+                    $userQuery->where('nombre', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('apellido', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+                })->orWhere('id', 'LIKE', "%{$searchTerm}%");
+            });
         }
-
+    
         // Filter by status if provided
         if ($request->has('status') && $request->status != 'all') {
             $isPending = $request->status === 'pending';
             $query->where('estado', !$isPending);
         }
-
+    
         // Sort results if sort parameters are provided
         if ($request->has('sort_field') && $request->has('sort_direction')) {
             $sortField = $request->sort_field;
             $sortDirection = $request->sort_direction;
-
+    
             // Handle different sort fields
             switch ($sortField) {
                 case 'id':
@@ -59,10 +74,10 @@ class PedidoController extends Controller
             // Default sorting by most recent
             $query->orderBy('created_at', 'desc');
         }
-
+    
         // Paginate the results (10 items per page)
         $pedidos = $query->paginate(10);
-
+    
         return response()->json([
             "message" => "Pedidos cargados",
             "datos" => $pedidos->items(),
@@ -76,7 +91,6 @@ class PedidoController extends Controller
             ]
         ]);
     }
-
     public function show($id)
     {
         $pedido = Pedido::with(['user', 'productos.modelos', 'cupon'])->findOrFail($id);
@@ -734,6 +748,8 @@ class PedidoController extends Controller
             // Calcular el monto total y productos vendidos solo para los productos del catálogo
             $montoTotal = 0;
             $totalProductos = 0;
+            $totalAPagar = 0;
+            $totalPendiente = 0;
 
             foreach ($pedidos as $pedido) {
                 foreach ($pedido->productos as $producto) {
@@ -741,6 +757,24 @@ class PedidoController extends Controller
                     $subtotal = $precioUnitario * $producto->pivot->cantidad;
                     $montoTotal += $subtotal;
                     $totalProductos += $producto->pivot->cantidad;
+
+                    // Calcular monto a pagar considerando descuentos
+                    if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                        $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                        $montoAPagar = $subtotal * $factorDescuento;
+                    } else {
+                        $montoAPagar = $subtotal;
+                    }
+                    $totalAPagar += $montoAPagar;
+
+                    // Calcular monto pendiente
+                    if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                        $factorPendiente = $pedido->pending / $pedido->total_amount;
+                        $montoPendiente = $subtotal * $factorPendiente;
+                    } else {
+                        $montoPendiente = 0;
+                    }
+                    $totalPendiente += $montoPendiente;
                 }
             }
 
@@ -762,15 +796,42 @@ class PedidoController extends Controller
                         $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
                             'nombre' => $producto->nombre,
                             'cantidad' => 0,
-                            'monto' => 0
+                            'monto' => 0,
+                            'monto_a_pagar' => 0,
+                            'pendiente' => 0,
+                            'es_estandar' => false,
+                            'precio_unitario' => 0
                         ];
                     }
 
                     $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
                     $subtotal = $precioUnitario * $producto->pivot->cantidad;
 
+                    // Calcular monto a pagar y pendiente para este producto en este pedido
+                    if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                        $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                        $montoAPagar = $subtotal * $factorDescuento;
+                    } else {
+                        $montoAPagar = $subtotal;
+                    }
+
+                    if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                        $factorPendiente = $pedido->pending / $pedido->total_amount;
+                        $montoPendiente = $subtotal * $factorPendiente;
+                    } else {
+                        $montoPendiente = 0;
+                    }
+
                     $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
                     $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto_a_pagar'] += $montoAPagar;
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['pendiente'] += $montoPendiente;
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['es_estandar'] = $producto->pivot->es_preventa;
+
+                    // Actualizar el precio unitario (promedio ponderado si hay múltiples pedidos)
+                    $totalCantidad = $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'];
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['precio_unitario'] =
+                        $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] / $totalCantidad;
                 }
             }
 
@@ -782,10 +843,8 @@ class PedidoController extends Controller
                 'totalPedidos' => $totalPedidos,
                 'montoTotal' => $montoTotal,
                 'totalProductos' => $totalProductos,
-                'fechaGeneracion' => $fechaActual,
-                'totalPedidos' => $totalPedidos,
-                'montoTotal' => $montoTotal,
-                'totalProductos' => $totalProductos,
+                'totalAPagar' => $totalAPagar,
+                'totalPendiente' => $totalPendiente,
                 'productosPorCategoria' => $productosPorCategoria,
                 'titulo' => 'Pedidos del Catálogo: ' . $catalogo->nombre,
             ];
@@ -816,7 +875,9 @@ class PedidoController extends Controller
                             'base64' => $base64,
                             'total_pedidos' => $totalPedidos,
                             'monto_total' => $montoTotal,
-                            'total_productos' => $totalProductos
+                            'total_productos' => $totalProductos,
+                            'total_a_pagar' => $totalAPagar,
+                            'total_pendiente' => $totalPendiente
                         ],
                         'message' => 'PDF de pedidos del catálogo generado exitosamente'
                     ]);
@@ -836,7 +897,9 @@ class PedidoController extends Controller
                             'expires_at' => now()->addDay()->toIso8601String(),
                             'total_pedidos' => $totalPedidos,
                             'monto_total' => $montoTotal,
-                            'total_productos' => $totalProductos
+                            'total_productos' => $totalProductos,
+                            'total_a_pagar' => $totalAPagar,
+                            'total_pendiente' => $totalPendiente
                         ],
                         'message' => 'URL de descarga generada exitosamente'
                     ]);
@@ -853,4 +916,520 @@ class PedidoController extends Controller
             ], 500);
         }
     }
+
+    /**
+ * Genera un PDF con los pedidos en proceso (estado = 0) de un catálogo específico
+ * 
+ * @param int $catalogoId ID del catálogo
+ * @param Request $request
+ * @return \Illuminate\Http\Response
+ */
+public function generarPdfPedidosEnProcesoPorCatalogo($catalogoId, Request $request)
+{
+    try {
+        // Verificar que el catálogo existe
+        $catalogo = \App\Models\Catalogo::findOrFail($catalogoId);
+
+        // Obtener todas las categorías del catálogo
+        $categorias = \App\Models\Categoria::where('catalogo_id', $catalogoId)->pluck('id');
+
+        if ($categorias->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El catálogo no tiene categorías asociadas'
+            ], 404);
+        }
+
+        // Obtener todos los productos de las categorías del catálogo
+        $productosIds = \App\Models\Producto::whereIn('categoria_id', $categorias)->pluck('id');
+
+        if ($productosIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay productos asociados a las categorías de este catálogo'
+            ], 404);
+        }
+
+        // Cargar pedidos EN PROCESO que contengan productos del catálogo
+        $pedidos = Pedido::with([
+            'user',
+            'productos' => function ($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds);
+            },
+            'productos.modelos',
+            'productos.categoria',
+            'productos.categoria.catalogo',
+            'cupon'
+        ])
+            ->where('estado', false) // Filtrar solo pedidos en proceso
+            ->whereHas('productos', function ($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
+        foreach ($pedidos as $pedido) {
+            $pedido->productos->each(function ($producto) {
+                $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+                $producto->es_preventa = $producto->pivot->es_preventa;
+                $producto->precio_aplicado = $producto->pivot->es_preventa ?
+                    $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $producto->precio_regular = $producto->pivot->precio;
+                $producto->precio_preventa = $producto->pivot->precio_preventa;
+                $producto->color = $producto->pivot->color;
+                $producto->modelo_id = $producto->pivot->modelo_id;
+                $producto->cantidad = $producto->pivot->cantidad;
+            });
+        }
+
+        // Filtrar pedidos que no tengan productos después del whereIn
+        $pedidos = $pedidos->filter(function ($pedido) {
+            return $pedido->productos->isNotEmpty();
+        });
+
+        if ($pedidos->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay pedidos en proceso con productos de este catálogo'
+            ], 404);
+        }
+
+        // Procesar los datos para el reporte
+        $fechaActual = Carbon::now()->format('d/m/Y H:i');
+        $totalPedidos = $pedidos->count();
+
+        // Calcular el monto total y productos vendidos solo para los productos del catálogo
+        $montoTotal = 0;
+        $totalProductos = 0;
+        $totalAPagar = 0;
+        $totalPendiente = 0;
+
+        foreach ($pedidos as $pedido) {
+            foreach ($pedido->productos as $producto) {
+                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $subtotal = $precioUnitario * $producto->pivot->cantidad;
+                $montoTotal += $subtotal;
+                $totalProductos += $producto->pivot->cantidad;
+
+                // Calcular monto a pagar considerando descuentos
+                if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                    $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                    $montoAPagar = $subtotal * $factorDescuento;
+                } else {
+                    $montoAPagar = $subtotal;
+                }
+                $totalAPagar += $montoAPagar;
+
+                // Calcular monto pendiente
+                if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                    $factorPendiente = $pedido->pending / $pedido->total_amount;
+                    $montoPendiente = $subtotal * $factorPendiente;
+                } else {
+                    $montoPendiente = 0;
+                }
+                $totalPendiente += $montoPendiente;
+            }
+        }
+
+        // Agrupar productos por categoría para el reporte
+        $productosPorCategoria = [];
+        foreach ($pedidos as $pedido) {
+            foreach ($pedido->productos as $producto) {
+                $categoriaId = $producto->categoria_id;
+                $categoriaNombre = $producto->categoria->nombre;
+
+                if (!isset($productosPorCategoria[$categoriaId])) {
+                    $productosPorCategoria[$categoriaId] = [
+                        'nombre' => $categoriaNombre,
+                        'productos' => []
+                    ];
+                }
+
+                if (!isset($productosPorCategoria[$categoriaId]['productos'][$producto->id])) {
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
+                        'nombre' => $producto->nombre,
+                        'cantidad' => 0,
+                        'monto' => 0,
+                        'monto_a_pagar' => 0,
+                        'pendiente' => 0,
+                        'es_estandar' => false,
+                        'precio_unitario' => 0
+                    ];
+                }
+
+                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $subtotal = $precioUnitario * $producto->pivot->cantidad;
+
+                // Calcular monto a pagar y pendiente para este producto en este pedido
+                if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                    $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                    $montoAPagar = $subtotal * $factorDescuento;
+                } else {
+                    $montoAPagar = $subtotal;
+                }
+
+                if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                    $factorPendiente = $pedido->pending / $pedido->total_amount;
+                    $montoPendiente = $subtotal * $factorPendiente;
+                } else {
+                    $montoPendiente = 0;
+                }
+
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto_a_pagar'] += $montoAPagar;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['pendiente'] += $montoPendiente;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['es_estandar'] = $producto->pivot->es_preventa;
+
+                // Actualizar el precio unitario (promedio ponderado si hay múltiples pedidos)
+                $totalCantidad = $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'];
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['precio_unitario'] =
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] / $totalCantidad;
+            }
+        }
+
+        // Preparar datos para la vista
+        $data = [
+            'catalogo' => $catalogo,
+            'pedidos' => $pedidos,
+            'fechaGeneracion' => $fechaActual,
+            'totalPedidos' => $totalPedidos,
+            'montoTotal' => $montoTotal,
+            'totalProductos' => $totalProductos,
+            'totalAPagar' => $totalAPagar,
+            'totalPendiente' => $totalPendiente,
+            'productosPorCategoria' => $productosPorCategoria,
+            'titulo' => 'Pedidos en Proceso del Catálogo: ' . $catalogo->nombre,
+            'estado' => 'en proceso'
+        ];
+
+        // Generar el PDF
+        $pdf = PDF::loadView('pedidos.reporte_catalogo_estado', $data);
+        $pdf->setPaper('a4', 'portrait');
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif',
+        ]);
+
+        // Determinar el formato de respuesta
+        $responseFormat = $request->query('format', 'binary');
+        $filename = 'pedidos_en_proceso_catalogo_' . $catalogo->id . '_' . Carbon::now()->format('dmY_His') . '.pdf';
+
+        switch ($responseFormat) {
+            case 'base64':
+                $base64 = base64_encode($pdf->output());
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'catalogo_id' => $catalogo->id,
+                        'catalogo_nombre' => $catalogo->nombre,
+                        'filename' => $filename,
+                        'content_type' => 'application/pdf',
+                        'base64' => $base64,
+                        'total_pedidos' => $totalPedidos,
+                        'monto_total' => $montoTotal,
+                        'total_productos' => $totalProductos,
+                        'total_a_pagar' => $totalAPagar,
+                        'total_pendiente' => $totalPendiente
+                    ],
+                    'message' => 'PDF de pedidos en proceso del catálogo generado exitosamente'
+                ]);
+
+            case 'url':
+                $path = 'pedidos/' . $filename;
+                Storage::disk('public')->put($path, $pdf->output());
+                $url = Storage::disk('public')->url($path);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'catalogo_id' => $catalogo->id,
+                        'catalogo_nombre' => $catalogo->nombre,
+                        'filename' => $filename,
+                        'url' => $url,
+                        'expires_at' => now()->addDay()->toIso8601String(),
+                        'total_pedidos' => $totalPedidos,
+                        'monto_total' => $montoTotal,
+                        'total_productos' => $totalProductos,
+                        'total_a_pagar' => $totalAPagar,
+                        'total_pendiente' => $totalPendiente
+                    ],
+                    'message' => 'URL de descarga generada exitosamente'
+                ]);
+
+            case 'binary':
+            default:
+                return $pdf->download($filename);
+        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar el PDF: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+}
+
+/**
+ * Genera un PDF con los pedidos completados (estado = 1) de un catálogo específico
+ * 
+ * @param int $catalogoId ID del catálogo
+ * @param Request $request
+ * @return \Illuminate\Http\Response
+ */
+public function generarPdfPedidosCompletadosPorCatalogo($catalogoId, Request $request)
+{
+    try {
+        // Verificar que el catálogo existe
+        $catalogo = \App\Models\Catalogo::findOrFail($catalogoId);
+
+        // Obtener todas las categorías del catálogo
+        $categorias = \App\Models\Categoria::where('catalogo_id', $catalogoId)->pluck('id');
+
+        if ($categorias->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El catálogo no tiene categorías asociadas'
+            ], 404);
+        }
+
+        // Obtener todos los productos de las categorías del catálogo
+        $productosIds = \App\Models\Producto::whereIn('categoria_id', $categorias)->pluck('id');
+
+        if ($productosIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay productos asociados a las categorías de este catálogo'
+            ], 404);
+        }
+
+        // Cargar pedidos COMPLETADOS que contengan productos del catálogo
+        $pedidos = Pedido::with([
+            'user',
+            'productos' => function ($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds);
+            },
+            'productos.modelos',
+            'productos.categoria',
+            'productos.categoria.catalogo',
+            'cupon'
+        ])
+            ->where('estado', true) // Filtrar solo pedidos completados
+            ->whereHas('productos', function ($query) use ($productosIds) {
+                $query->whereIn('productos.id', $productosIds);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Asegurarse de que los datos de la tabla pivot estén disponibles para cada pedido
+        foreach ($pedidos as $pedido) {
+            $pedido->productos->each(function ($producto) {
+                $producto->cantidad_minima = $producto->pivot->cantidad_minima;
+                $producto->cantidad_maxima = $producto->pivot->cantidad_maxima;
+                $producto->cantidad_minima_preventa = $producto->pivot->cantidad_minima_preventa;
+                $producto->cantidad_maxima_preventa = $producto->pivot->cantidad_maxima_preventa;
+                $producto->es_preventa = $producto->pivot->es_preventa;
+                $producto->precio_aplicado = $producto->pivot->es_preventa ?
+                    $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $producto->precio_regular = $producto->pivot->precio;
+                $producto->precio_preventa = $producto->pivot->precio_preventa;
+                $producto->color = $producto->pivot->color;
+                $producto->modelo_id = $producto->pivot->modelo_id;
+                $producto->cantidad = $producto->pivot->cantidad;
+            });
+        }
+
+        // Filtrar pedidos que no tengan productos después del whereIn
+        $pedidos = $pedidos->filter(function ($pedido) {
+            return $pedido->productos->isNotEmpty();
+        });
+
+        if ($pedidos->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay pedidos completados con productos de este catálogo'
+            ], 404);
+        }
+
+        // Procesar los datos para el reporte
+        $fechaActual = Carbon::now()->format('d/m/Y H:i');
+        $totalPedidos = $pedidos->count();
+
+        // Calcular el monto total y productos vendidos solo para los productos del catálogo
+        $montoTotal = 0;
+        $totalProductos = 0;
+        $totalAPagar = 0;
+        $totalPendiente = 0;
+
+        foreach ($pedidos as $pedido) {
+            foreach ($pedido->productos as $producto) {
+                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $subtotal = $precioUnitario * $producto->pivot->cantidad;
+                $montoTotal += $subtotal;
+                $totalProductos += $producto->pivot->cantidad;
+
+                // Calcular monto a pagar considerando descuentos
+                if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                    $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                    $montoAPagar = $subtotal * $factorDescuento;
+                } else {
+                    $montoAPagar = $subtotal;
+                }
+                $totalAPagar += $montoAPagar;
+
+                // Calcular monto pendiente
+                if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                    $factorPendiente = $pedido->pending / $pedido->total_amount;
+                    $montoPendiente = $subtotal * $factorPendiente;
+                } else {
+                    $montoPendiente = 0;
+                }
+                $totalPendiente += $montoPendiente;
+            }
+        }
+
+        // Agrupar productos por categoría para el reporte
+        $productosPorCategoria = [];
+        foreach ($pedidos as $pedido) {
+            foreach ($pedido->productos as $producto) {
+                $categoriaId = $producto->categoria_id;
+                $categoriaNombre = $producto->categoria->nombre;
+
+                if (!isset($productosPorCategoria[$categoriaId])) {
+                    $productosPorCategoria[$categoriaId] = [
+                        'nombre' => $categoriaNombre,
+                        'productos' => []
+                    ];
+                }
+
+                if (!isset($productosPorCategoria[$categoriaId]['productos'][$producto->id])) {
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id] = [
+                        'nombre' => $producto->nombre,
+                        'cantidad' => 0,
+                        'monto' => 0,
+                        'monto_a_pagar' => 0,
+                        'pendiente' => 0,
+                        'es_estandar' => false,
+                        'precio_unitario' => 0
+                    ];
+                }
+
+                $precioUnitario = $producto->pivot->es_preventa ? $producto->pivot->precio_preventa : $producto->pivot->precio;
+                $subtotal = $precioUnitario * $producto->pivot->cantidad;
+
+                // Calcular monto a pagar y pendiente para este producto en este pedido
+                if ($pedido->total_amount > 0 && $pedido->total_to_pay !== null) {
+                    $factorDescuento = $pedido->total_to_pay / $pedido->total_amount;
+                    $montoAPagar = $subtotal * $factorDescuento;
+                } else {
+                    $montoAPagar = $subtotal;
+                }
+
+                if ($pedido->pending > 0 && $pedido->total_amount > 0) {
+                    $factorPendiente = $pedido->pending / $pedido->total_amount;
+                    $montoPendiente = $subtotal * $factorPendiente;
+                } else {
+                    $montoPendiente = 0;
+                }
+
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'] += $producto->pivot->cantidad;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] += $subtotal;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto_a_pagar'] += $montoAPagar;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['pendiente'] += $montoPendiente;
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['es_estandar'] = $producto->pivot->es_preventa;
+
+                // Actualizar el precio unitario (promedio ponderado si hay múltiples pedidos)
+                $totalCantidad = $productosPorCategoria[$categoriaId]['productos'][$producto->id]['cantidad'];
+                $productosPorCategoria[$categoriaId]['productos'][$producto->id]['precio_unitario'] =
+                    $productosPorCategoria[$categoriaId]['productos'][$producto->id]['monto'] / $totalCantidad;
+            }
+        }
+
+        // Preparar datos para la vista
+        $data = [
+            'catalogo' => $catalogo,
+            'pedidos' => $pedidos,
+            'fechaGeneracion' => $fechaActual,
+            'totalPedidos' => $totalPedidos,
+            'montoTotal' => $montoTotal,
+            'totalProductos' => $totalProductos,
+            'totalAPagar' => $totalAPagar,
+            'totalPendiente' => $totalPendiente,
+            'productosPorCategoria' => $productosPorCategoria,
+            'titulo' => 'Pedidos Completados del Catálogo: ' . $catalogo->nombre,
+            'estado' => 'completado'
+        ];
+
+        // Generar el PDF
+        $pdf = PDF::loadView('pedidos.reporte_catalogo_estado', $data);
+        $pdf->setPaper('a4', 'portrait');
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif',
+        ]);
+
+        // Determinar el formato de respuesta
+        $responseFormat = $request->query('format', 'binary');
+        $filename = 'pedidos_completados_catalogo_' . $catalogo->id . '_' . Carbon::now()->format('dmY_His') . '.pdf';
+
+        switch ($responseFormat) {
+            case 'base64':
+                $base64 = base64_encode($pdf->output());
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'catalogo_id' => $catalogo->id,
+                        'catalogo_nombre' => $catalogo->nombre,
+                        'filename' => $filename,
+                        'content_type' => 'application/pdf',
+                        'base64' => $base64,
+                        'total_pedidos' => $totalPedidos,
+                        'monto_total' => $montoTotal,
+                        'total_productos' => $totalProductos,
+                        'total_a_pagar' => $totalAPagar,
+                        'total_pendiente' => $totalPendiente
+                    ],
+                    'message' => 'PDF de pedidos completados del catálogo generado exitosamente'
+                ]);
+
+            case 'url':
+                $path = 'pedidos/' . $filename;
+                Storage::disk('public')->put($path, $pdf->output());
+                $url = Storage::disk('public')->url($path);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'catalogo_id' => $catalogo->id,
+                        'catalogo_nombre' => $catalogo->nombre,
+                        'filename' => $filename,
+                        'url' => $url,
+                        'expires_at' => now()->addDay()->toIso8601String(),
+                        'total_pedidos' => $totalPedidos,
+                        'monto_total' => $montoTotal,
+                        'total_productos' => $totalProductos,
+                        'total_a_pagar' => $totalAPagar,
+                        'total_pendiente' => $totalPendiente
+                    ],
+                    'message' => 'URL de descarga generada exitosamente'
+                ]);
+
+            case 'binary':
+            default:
+                return $pdf->download($filename);
+        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar el PDF: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+}
 }

@@ -386,9 +386,9 @@
                                         <div class="producto-nombre">
                                             {{ $producto->nombre }}
                                             @if($producto->pivot->es_preventa)
-                                                <span class="price-type-badge price-type-preventa">PREVENTA</span>
+                                                <span class="price-type-badge price-type-preventa">Estándar</span>
                                             @else
-                                                <span class="price-type-badge price-type-regular">REGULAR</span>
+                                                <span class="price-type-badge price-type-regular">Especial</span>
                                             @endif
                                         </div>
                                         <div class="producto-categoria">
@@ -420,11 +420,11 @@
                                         <!-- Rangos de cantidad -->
                                         @if($producto->pivot->es_preventa)
                                             <span class="quantity-range">
-                                                Rango preventa: {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }}
+                                                Rango Estándar: {{ $producto->pivot->cantidad_minima_preventa ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima_preventa ?? 'N/A' }}
                                             </span>
                                         @else
                                             <span class="quantity-range">
-                                                Rango regular: {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima ?? 'N/A' }}
+                                                Rango Especial: {{ $producto->pivot->cantidad_minima ?? 'N/A' }} - {{ $producto->pivot->cantidad_maxima ?? 'N/A' }}
                                             </span>
                                         @endif
                                     </td>
@@ -432,11 +432,11 @@
                                         Bs {{ number_format($precioAplicado, 2) }}
                                         @if($producto->pivot->es_preventa && $producto->pivot->precio)
                                             <div style="font-size: 7px; color: #888; text-decoration: line-through;">
-                                                Reg: Bs {{ number_format($producto->pivot->precio, 2) }}
+                                                Especial: Bs {{ number_format($producto->pivot->precio, 2) }}
                                             </div>
                                         @elseif(!$producto->pivot->es_preventa && $producto->pivot->precio_preventa)
                                             <div style="font-size: 7px; color: #888; text-decoration: line-through;">
-                                                Pre: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}
+                                                Estándar: Bs {{ number_format($producto->pivot->precio_preventa, 2) }}
                                             </div>
                                         @endif
                                     </td>
@@ -495,7 +495,7 @@
     </div>
     
     <div class="footer">
-        <p>© {{ date('Y') }} Mi Empresa - Todos los derechos reservados | Reporte oficial de pedidos {{ isset($estado) ? $estado : '' }}</p>
+        <p>© {{ date('Y') }} Neotechbol - Todos los derechos reservados | Reporte oficial de pedidos {{ isset($estado) ? $estado : '' }}</p>
     </div>
 </body>
 </html>

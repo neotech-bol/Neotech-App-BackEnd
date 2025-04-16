@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Pedidos - Catálogo: {{ $catalogo->nombre }}</title>
+    <title>Reporte de Pedidos {{ isset($estado) ? ucfirst($estado) : '' }} - Catálogo: {{ $catalogo->nombre }}</title>
     <style>
         /* Estilos base */
         body {
@@ -502,7 +502,15 @@
             @if(file_exists(public_path('img/logo.png')))
                 <img src="{{ public_path('img/logo.png') }}" alt="Logo" class="logo">
             @endif
-            <h1>Reporte de Pedidos - Catálogo: {{ $catalogo->nombre }}</h1>
+            <h1>
+                Reporte de Pedidos 
+                @if(isset($estado))
+                    <span class="pedido-estado {{ $estado == 'completado' ? 'estado-completado' : 'estado-proceso' }}">
+                        {{ ucfirst($estado) }}
+                    </span>
+                @endif
+                - Catálogo: {{ $catalogo->nombre }}
+            </h1>
         </div>
         <div class="header-right">
             <div>Fecha de generación: {{ $fechaGeneracion }}</div>
@@ -532,102 +540,102 @@
         </div>
     </div>
     
-<!-- Resumen por categorías -->
-<h2 class="section-title">Resumen por Categorías</h2>
+    <!-- Resumen por categorías -->
+    <h2 class="section-title">Resumen por Categorías</h2>
 
-@foreach($productosPorCategoria as $categoriaId => $categoria)
-    <div class="category-container">
-        <div class="category-header">
-            <div class="category-name">{{ $categoria['nombre'] }}</div>
-            <div class="product-count">{{ count($categoria['productos']) }} productos</div>
-        </div>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th width="25%">Producto</th>
-                    <th width="10%">Tipo</th>
-                    <th width="15%">Precio Unit.</th>
-                    <th width="10%">Cantidad</th>
-                    <th width="15%">Monto Total</th>
-                    <th width="15%">A Pagar</th>
-                    <th width="10%">Pendiente</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php $totalCategoria = 0; $totalAPagar = 0; $totalPendiente = 0; @endphp
-                @foreach($categoria['productos'] as $productoId => $producto)
-                    @php 
-                        $totalCategoria += $producto['monto']; 
-                        
-                        // Asegurarnos de que estos valores existan, si no, usar valores predeterminados
-                        $montoPagar = isset($producto['monto_a_pagar']) ? $producto['monto_a_pagar'] : $producto['monto'];
-                        $montoPendiente = isset($producto['pendiente']) ? $producto['pendiente'] : 0;
-                        $totalAPagar += $montoPagar;
-                        $totalPendiente += $montoPendiente;
-                        
-                        // Determinar si es precio estándar o especial
-                        $esEstandar = isset($producto['es_estandar']) ? $producto['es_estandar'] : false;
-                        
-                        // Calcular el precio unitario si no está disponible
-                        $precioUnitario = isset($producto['precio_unitario']) 
-                            ? $producto['precio_unitario'] 
-                            : ($producto['cantidad'] > 0 ? $producto['monto'] / $producto['cantidad'] : 0);
-                    @endphp
+    @foreach($productosPorCategoria as $categoriaId => $categoria)
+        <div class="category-container">
+            <div class="category-header">
+                <div class="category-name">{{ $categoria['nombre'] }}</div>
+                <div class="product-count">{{ count($categoria['productos']) }} productos</div>
+            </div>
+            
+            <table>
+                <thead>
                     <tr>
-                        <td>
-                            <div class="producto-nombre">
-                                {{ $producto['nombre'] }}
-                            </div>
-                        </td>
-                        <td>
-                            @if($esEstandar)
-                                <span class="estandar-badge">Estándar</span>
-                            @else
-                                <span class="especial-badge">Especial</span>
-                            @endif
-                        </td>
+                        <th width="25%">Producto</th>
+                        <th width="10%">Tipo</th>
+                        <th width="15%">Precio Unit.</th>
+                        <th width="10%">Cantidad</th>
+                        <th width="15%">Monto Total</th>
+                        <th width="15%">A Pagar</th>
+                        <th width="10%">Pendiente</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php $totalCategoria = 0; $totalAPagar = 0; $totalPendiente = 0; @endphp
+                    @foreach($categoria['productos'] as $productoId => $producto)
+                        @php 
+                            $totalCategoria += $producto['monto']; 
+                            
+                            // Asegurarnos de que estos valores existan, si no, usar valores predeterminados
+                            $montoPagar = isset($producto['monto_a_pagar']) ? $producto['monto_a_pagar'] : $producto['monto'];
+                            $montoPendiente = isset($producto['pendiente']) ? $producto['pendiente'] : 0;
+                            $totalAPagar += $montoPagar;
+                            $totalPendiente += $montoPendiente;
+                            
+                            // Determinar si es precio estándar o especial
+                            $esEstandar = isset($producto['es_estandar']) ? $producto['es_estandar'] : false;
+                            
+                            // Calcular el precio unitario si no está disponible
+                            $precioUnitario = isset($producto['precio_unitario']) 
+                                ? $producto['precio_unitario'] 
+                                : ($producto['cantidad'] > 0 ? $producto['monto'] / $producto['cantidad'] : 0);
+                        @endphp
+                        <tr>
+                            <td>
+                                <div class="producto-nombre">
+                                    {{ $producto['nombre'] }}
+                                </div>
+                            </td>
+                            <td>
+                                @if($esEstandar)
+                                    <span class="estandar-badge">Estándar</span>
+                                @else
+                                    <span class="especial-badge">Especial</span>
+                                @endif
+                            </td>
+                            <td align="right">
+                                Bs. {{ number_format($precioUnitario, 2) }}
+                            </td>
+                            <td align="center">
+                                {{ $producto['cantidad'] }}
+                            </td>
+                            <td align="right">
+                                Bs. {{ number_format($producto['monto'], 2) }}
+                            </td>
+                            <td align="right">
+                                <strong>Bs. {{ number_format($montoPagar, 2) }}</strong>
+                            </td>
+                            <td align="right">
+                                @if($montoPendiente > 0)
+                                    <span style="color: #f59e0b; font-weight: bold;">
+                                        Bs. {{ number_format($montoPendiente, 2) }}
+                                    </span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                    <tr class="totals-row">
+                        <td colspan="4" align="right"><strong>Totales:</strong></td>
+                        <td align="right"><strong>Bs. {{ number_format($totalCategoria, 2) }}</strong></td>
+                        <td align="right"><strong>Bs. {{ number_format($totalAPagar, 2) }}</strong></td>
                         <td align="right">
-                            Bs. {{ number_format($precioUnitario, 2) }}
-                        </td>
-                        <td align="center">
-                            {{ $producto['cantidad'] }}
-                        </td>
-                        <td align="right">
-                            Bs. {{ number_format($producto['monto'], 2) }}
-                        </td>
-                        <td align="right">
-                            <strong>Bs. {{ number_format($montoPagar, 2) }}</strong>
-                        </td>
-                        <td align="right">
-                            @if($montoPendiente > 0)
-                                <span style="color: #f59e0b; font-weight: bold;">
-                                    Bs. {{ number_format($montoPendiente, 2) }}
-                                </span>
+                            @if($totalPendiente > 0)
+                                <strong style="color: #f59e0b;">
+                                    Bs. {{ number_format($totalPendiente, 2) }}
+                                </strong>
                             @else
                                 -
                             @endif
                         </td>
                     </tr>
-                @endforeach
-                <tr class="totals-row">
-                    <td colspan="4" align="right"><strong>Totales:</strong></td>
-                    <td align="right"><strong>Bs. {{ number_format($totalCategoria, 2) }}</strong></td>
-                    <td align="right"><strong>Bs. {{ number_format($totalAPagar, 2) }}</strong></td>
-                    <td align="right">
-                        @if($totalPendiente > 0)
-                            <strong style="color: #f59e0b;">
-                                Bs. {{ number_format($totalPendiente, 2) }}
-                            </strong>
-                        @else
-                            -
-                        @endif
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-@endforeach
+                </tbody>
+            </table>
+        </div>
+    @endforeach
     
     <div class="page-break"></div>
     

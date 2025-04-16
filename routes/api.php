@@ -110,6 +110,9 @@ Route::group(["middleware" => "auth:sanctum"], function () {
         Route::put('/producto/{id}', [ProductosController::class, 'update']);
         Route::delete('productos/{productoId}/images/{imagenId}', [ProductosController::class, 'destroyImage']);
         Route::delete('/producto/{id}', [ProductosController::class, 'cambiarEstado']);
+        // Rutas para importación de productos desde Excel
+        Route::post('/productos/importar', [ProductosController::class, 'importarDesdeExcel']);
+        Route::get('/productos/plantilla-excel', [ProductosController::class, 'descargarPlantillaExcel']);
     });
     Route::middleware(['auth:sanctum', 'role:admin,super-admin', 'permission:Gestionar Pedidos'])->group(function () {
         //Pedidos
@@ -133,6 +136,9 @@ Route::group(["middleware" => "auth:sanctum"], function () {
         Route::get('/pedidos/pdf/en-proceso', [PedidoController::class, 'generarPdfPedidosEnProceso'])->name('pedidos.pdf.en-proceso');
         Route::get('pedidos/catalogo/{catalogoId}/pdf', [PedidoController::class, 'generarPdfPedidosPorCatalogo']);
         Route::get('pedidos/catalogo/{catalogoId}/excel', [PedidoController::class, 'exportarPedidosPorCatalogo']);
+        // Rutas para generar PDFs de pedidos por catálogo según estado
+        Route::get('pedidos/catalogo/{catalogoId}/en-proceso', [PedidoController::class, 'generarPdfPedidosEnProcesoPorCatalogo']);
+        Route::get('pedidos/catalogo/{catalogoId}/completados', [PedidoController::class, 'generarPdfPedidosCompletadosPorCatalogo']);
     });
     Route::middleware(['auth:sanctum', 'role:admin,super-admin', 'permission:Gestionar Cupones'])->group(function () {
         //Cupones
@@ -168,17 +174,17 @@ Route::group(["middleware" => "auth:sanctum"], function () {
 
     //testimonios
     Route::get('/testimonios', [TestimoniosController::class, 'index']);
-    Route::post('/testimonio-nuevo-personal', [TestimoniosController::class,'store']);
-    Route::get('/testimonio/{id}', [TestimoniosController::class,'show']);
+    Route::post('/testimonio-nuevo-personal', [TestimoniosController::class, 'store']);
+    Route::get('/testimonio/{id}', [TestimoniosController::class, 'show']);
     Route::put('/testimonio/{id}', [TestimoniosController::class, 'update']);
-    Route::put('/testimonio/{id}/estado', [TestimoniosController::class,'cambiarEstado']);
+    Route::put('/testimonio/{id}/estado', [TestimoniosController::class, 'cambiarEstado']);
 
     //citas
     Route::get('/citas', [CitasController::class, 'index']);
-    Route::post('/cita-nueva', [CitasController::class,'store']);
-    Route::get('/cita-ver/{id}', [CitasController::class,'show']);
+    Route::post('/cita-nueva', [CitasController::class, 'store']);
+    Route::get('/cita-ver/{id}', [CitasController::class, 'show']);
     Route::put('/cita/{id}', [CitasController::class, 'update']);
-    Route::put('/cita/{id}/estado', [CitasController::class,'cambiarEstado']);
+    Route::put('/cita/{id}/estado', [CitasController::class, 'cambiarEstado']);
     Route::delete('/cita/{id}', [CitasController::class, 'destroy']);
 });
 
@@ -201,7 +207,7 @@ Route::get('/catalogos-activos-ids', [CatalogoController::class, 'getActiveCatal
 Route::get('/catalogo-activo/{id}', [CatalogoController::class, 'showCatalogoActive']);
 
 
-Route::post('/cita-nueva-user', [CitasController::class,'store']);
+Route::post('/cita-nueva-user', [CitasController::class, 'store']);
 
 //testimonios 
 Route::post('/testimonio-nuevo', [TestimoniosController::class, 'store']);

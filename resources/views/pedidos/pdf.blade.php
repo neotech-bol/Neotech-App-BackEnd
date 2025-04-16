@@ -455,7 +455,7 @@
                     </div>
                 </div>
                 <div class="voucher-image">
-                    <img src="{{ asset('storage/vouchers/'.$pedido->voucher) }}" alt="Comprobante de pago">
+                    <img src="{{ asset('vouchers/'.$pedido->voucher) }}" alt="Comprobante de pago">
                 </div>
             </div>
         </div>
